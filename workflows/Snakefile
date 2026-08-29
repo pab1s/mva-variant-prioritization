@@ -1,0 +1,21 @@
+# Snakemake workflow for MVA variant prioritization
+configfile: "../configs/example_config.yaml"
+
+rule all:
+    input:
+        "results/ranked_variants.csv"
+
+rule qc:
+    input: "data/fastq/{sample}.fastq.gz"
+    output: "results/qc/{sample}_fastqc.html"
+    shell: "fastqc {input} -o results/qc/"
+
+rule annotate:
+    input: "results/variants/{sample}.vcf.gz"
+    output: "results/annotated/{sample}.vep.vcf.gz"
+    shell: "vep -i {input} -o {output} --cache --offline"
+
+rule prioritize:
+    input: vcf="results/annotated/{sample}.vep.vcf.gz", hpo="configs/hpo_terms.yaml"
+    output: "results/ranked_variants.csv"
+    shell: "python -m src.prioritization.prioritize --vcf {input.vcf} --hpo {input.hpo} -o {output}"

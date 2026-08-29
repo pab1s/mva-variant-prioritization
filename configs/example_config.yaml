@@ -1,0 +1,8 @@
+# Example pipeline configuration
+reference: "/data/references/GRCh38.fa"
+vep_cache: "/data/vep_cache"
+gnomad_af_threshold: 0.01
+cadd_threshold: 15
+phenotype_weight: 0.6
+pathogenicity_weight: 0.4
+output_dir: "results/"

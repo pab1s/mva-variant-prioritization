@@ -1,0 +1,5 @@
+# HPO terms extracted from clinical description (fill from phenotype data)
+hpo_terms:
+  # - "HP:0000252" # Microcephaly (example)
+  # - "HP:0001166" # Arachnodactyly
+  # Add real terms after curation
