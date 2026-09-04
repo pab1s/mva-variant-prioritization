@@ -6,8 +6,39 @@ __pycache__/
 # C extensions
 *.so
 
-# Project specific ignores
+# Project specific ignores — MVA DATA PRIVACY (WCG IRB #20252010) — NEVER COMMIT PATIENT DATA
+# Raw controlled data (FASTQ, VCF, BAM, phenotype doc) — re-identification risk, see docs/problem_statement.md
 data/
+**/data/
+*.fastq
+*.fastq.gz
+*.fq.gz
+*.bam
+*.bam.bai
+*.cram
+*.crai
+*.vcf
+*.vcf.gz
+*.vcf.gz.tbi
+*.gvcf.gz
+*.gvcf.gz.tbi
+Challenge_Clinical_Phenotype*.docx
+*Clinical*Phenotype*.docx
+*phenotype*.docx
+# Derived pipeline outputs — 541M ranked VCF + large QC; keep local, not GitHub (outputs CC BY 4.0 but too large / may contain variant-level PHI)
+results/
+results/*
+work/
+work/*
+.nextflow/
+.nextflow/*
+.nextflow.log*
+.nextflow.log.*
+.nextflow_history
+timeline.html
+report.html
+dag.svg
+trace.txt
 
 # Distribution / packaging
 .Python

@@ -1,8 +1,14 @@
-# Example pipeline configuration
+# Example pipeline configuration — MVA baseline
+# Reference genome: GRCh38 without alt contigs (Sentieon haploptyper used GCA_000001405.15)
 reference: "/data/references/GRCh38.fa"
-vep_cache: "/data/vep_cache"
+vep_cache: "/data/vep_cache"  # set to real cache if available; pipeline auto-detects and falls back if missing
 gnomad_af_threshold: 0.01
 cadd_threshold: 15
 phenotype_weight: 0.6
 pathogenicity_weight: 0.4
 output_dir: "results/"
+# Baseline tuning
+min_qd: null        # e.g. 2.0 to filter low QD
+max_variants: null  # set e.g. 100000 for quick debug runs
+# HPO
+hpo_terms: "config/hpo_terms.yaml"
