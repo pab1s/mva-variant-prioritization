@@ -9,6 +9,7 @@ data/
     calls/       Provided Sentieon VCF + .tbi (5,012,204 variants) — controlled access
     phenotype/   Challenge_Clinical_Phenotype_1.docx — confidential, do not redistribute
   references/    GRCh38.fa + .fai (+ no-alt .gz source)
+  interim/       Expensive intermediates: full.vep.vcf.gz (5M VEP-annotated) + .tbi
   vep_cache/     Ensembl VEP 113 GRCh38 cache (extracted homo_sapiens/ + tmp/ downloads)
   cadd/          CADD v1.7 GRCh38 pre-scored files (whole_genome_SNVs + indel + .tbi)
   .cache/        Hugging Face download cache
