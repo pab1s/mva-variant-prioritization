@@ -1,5 +1,5 @@
 # HPO terms curated from Challenge_Clinical_Phenotype_1.docx (2026-08-29 hackathon doc)
-# Source: data/Challenge_Clinical_Phenotype_1.docx — 8 features listed with HPO IDs
+# Source: data/raw/phenotype/Challenge_Clinical_Phenotype_1.docx — 8 features listed with HPO IDs
 # This is the phenotypic input for variant prioritization (phenotype_weight in example_config.yaml)
 hpo_terms:
   - "HP:0002859" # Rhabdomyosarcoma — malignant soft tissue tumour, primary oncological event

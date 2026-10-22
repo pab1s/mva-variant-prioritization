@@ -6,7 +6,8 @@ rule all:
         "results/ranked_variants.csv"
 
 rule qc:
-    input: "data/fastq/{sample}.fastq.gz"
+    # NOTE: sketch only (see workflows/main.nf as primary). Raw reads live in data/raw/fastq/.
+    input: "data/raw/fastq/{sample}.fastq.gz"
     output: "results/qc/{sample}_fastqc.html"
     shell: "fastqc {input} -o results/qc/"
 
