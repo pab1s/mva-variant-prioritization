@@ -1,7 +1,7 @@
 # Example pipeline configuration — MVA baseline
 # Reference genome: GRCh38 without alt contigs (Sentieon haploptyper used GCA_000001405.15)
-reference: "/data/references/GRCh38.fa"
-vep_cache: "/data/vep_cache"  # set to real cache if available; pipeline auto-detects and falls back if missing
+reference: "data/references/GRCh38.fa"
+vep_cache: "data/vep_cache"  # set to real cache if available; pipeline auto-detects and falls back if missing (standard: VEP 113 GRCh38)
 gnomad_af_threshold: 0.01
 cadd_threshold: 15
 phenotype_weight: 0.6

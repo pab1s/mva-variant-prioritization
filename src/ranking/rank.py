@@ -4,22 +4,19 @@ from pathlib import Path
 
 
 def rank_variants(scored_df: pd.DataFrame, score_col: str = "score") -> pd.DataFrame:
-    """Sort by final score and assign ranks (1-based).
+    """Sort by single calibrated score, descending (1-based ranks).
 
-    Scores are assumed calibrated 0-1 (higher = more likely causal).
-    Ties broken by pathogenicity_score then rare_score if present.
-
+    Standard continuous ranking: no buckets. Ties broken by
+    pathogenicity_score, then quality_score, then rare_score.
     Returns DataFrame with RANK column added, sorted descending.
     """
     cols = scored_df.columns.tolist()
     sort_by = [score_col]
     ascending = [False]
-    if "pathogenicity_score" in cols:
-        sort_by.append("pathogenicity_score")
-        ascending.append(False)
-    if "quality_score" in cols:
-        sort_by.append("quality_score")
-        ascending.append(False)
+    for tie in ("pathogenicity_score", "quality_score", "rare_score"):
+        if tie in cols:
+            sort_by.append(tie)
+            ascending.append(False)
     # pandas sort
     ranked = scored_df.sort_values(sort_by, ascending=ascending).reset_index(drop=True)
     ranked["RANK"] = ranked.index + 1
@@ -61,7 +58,7 @@ def to_submission_format(ranked_df: pd.DataFrame, out_path: str) -> None:
 
     # Select output columns (keep extras if wanted for inspection)
     base_cols = ["CHROM", "POS", "REF", "ALT", "RANK", "SCORE"]
-    extra_cols = [c for c in ["SYMBOL", "Gene", "Consequence", "gnomad_af", "CADD_PHRED", "FILTER", "score", "pathogenicity_score", "phenotype_score"] if c in df.columns]
+    extra_cols = [c for c in ["SYMBOL", "gene_source", "compound_het_candidate", "GT", "Gene", "Consequence", "gnomad_af", "CADD_PHRED", "FILTER", "score", "pathogenicity_score", "phenotype_score", "recessive_bonus", "decoy_penalty"] if c in df.columns]
     out_cols = base_cols + extra_cols
 
     df_sorted = df.sort_values("RANK")

@@ -1,133 +1,155 @@
-"""Ensembl VEP / SnpEff annotation helpers.
+"""Ensembl VEP annotation helper — fail fast, no silent fallbacks.
 
 Real VEP requires:
-  - ensembl-vep installed (perl) + cache (~20GB) at /data/vep_cache or params.vep_cache
-  - or Docker image ensemblorg/ensembl-vep
+  - ensembl-vep (conda perl + vep script, see CONDA_PERL/CONDA_VEP)
+  - cache (~20GB) at cache_dir (e.g. data/vep_cache)
+  - reference FASTA for HGVS notation
 
-Baseline pipeline is VEP-ready but offline-tolerant:
-  - If cache/binary missing → copy VCF through with warning and tag INFO as VEP_MOCK
-  - If available → shell out to `vep -i {in} -o {out} --cache --offline --vcf --force_overwrite`
+Design: annotation is load-bearing for ranking. A silently unannotated VCF
+produces a plausible-looking but wrong ranked list (all consequences
+inferred, all variants "rare"). So every failure mode raises instead of
+passing data through.
 """
 import shutil
 import subprocess
-import gzip
 from pathlib import Path
 
+CONDA_PERL = Path.home() / "micromamba/envs/mva/bin/perl"
+CONDA_VEP = Path.home() / "micromamba/envs/mva/bin/vep"
+# VEP CADD plugin shipped inside the conda ensembl-vep dist (top-level CADD.pm)
+CONDA_PLUGINS = Path.home() / "micromamba/envs/mva/share/ensembl-vep-113.4-0"
 
-def _has_vep(cache_dir: str | None = None) -> bool:
+
+def _vep_cmd() -> list[str]:
+    """Working VEP invocation: conda perl + conda vep script.
+
+    The `vep` on PATH uses /usr/bin/perl which lacks DBI; the conda
+    perl has it. Raises if VEP is not installed.
+    """
+    if CONDA_PERL.exists() and CONDA_VEP.exists():
+        return [str(CONDA_PERL), str(CONDA_VEP)]
     vep_bin = shutil.which("vep")
-    if not vep_bin:
-        return False
-    if cache_dir and not Path(cache_dir).exists():
-        return False
-    return True
+    if vep_bin:
+        return [vep_bin]
+    raise RuntimeError(
+        "VEP binary not found (checked conda env + PATH). "
+        "Install ensembl-vep 113 (e.g. micromamba install -n mva ensembl-vep)."
+    )
 
 
-def _has_docker_vep() -> bool:
-    return shutil.which("docker") is not None
+def _require_cache(cache_dir: str | None) -> str:
+    if not cache_dir or not Path(cache_dir).exists():
+        raise RuntimeError(
+            f"VEP cache not found: {cache_dir!r}. Download "
+            "homo_sapiens_vep_113_GRCh38.tar.gz from "
+            "https://ftp.ensembl.org/pub/release-113/variation/vep/ "
+            "and extract it into data/vep_cache/."
+        )
+    return cache_dir
 
 
-def annotate_vcf(in_vcf: str, out_vcf: str, cache_dir: str | None = None) -> str:
-    """Annotate VCF with VEP if available, else pass-through.
+def annotate_vcf(in_vcf: str, out_vcf: str, cache_dir: str | None = None,
+                 fasta: str | None = None, fork: int = 2,
+                 timeout: int = 7200,
+                 cadd_snv: str | None = None,
+                 cadd_indel: str | None = None) -> str:
+    """Annotate VCF with VEP. Raises on any failure - never passes through.
 
     Args:
-        in_vcf: input .vcf.gz
-        out_vcf: output .vep.vcf.gz (or .vcf.gz)
-        cache_dir: VEP cache directory (e.g. /data/vep_cache)
+        in_vcf: input VCF (.vcf or .vcf.gz)
+        out_vcf: output annotated VCF path
+        cache_dir: VEP cache directory (required)
+        fasta: reference FASTA for HGVS notation (required)
+        fork: VEP parallel workers
+        timeout: subprocess timeout in seconds
 
     Returns path to annotated VCF.
+
+    Raises:
+        RuntimeError: VEP missing, cache missing, fasta missing, or VEP
+            exits non-zero / produces empty output.
     """
     in_p = Path(in_vcf)
     out_p = Path(out_vcf)
+    if not in_p.exists():
+        raise RuntimeError(f"Input VCF not found: {in_vcf!r}")
     out_p.parent.mkdir(parents=True, exist_ok=True)
 
-    # Try native VEP
-    if _has_vep(cache_dir):
-        cmd = [
-            "vep",
-            "-i", str(in_p),
-            "-o", str(out_p),
-            "--vcf",
-            "--cache",
-            "--offline",
-            "--force_overwrite",
-            "--assembly", "GRCh38",
-            "--symbol", "--canonical", "--hgvs",
-            "--af_gnomad", "--clin_sig",
+    cmd = _vep_cmd()
+    cache = _require_cache(cache_dir)
+    if not fasta or not Path(fasta).exists():
+        raise RuntimeError(
+            f"Reference FASTA not found: {fasta!r}. HGVS notation requires it."
+        )
+
+    plugin_args: list[str] = []
+    if cadd_snv or cadd_indel:
+        for label, path in (("CADD SNV", cadd_snv), ("CADD indel", cadd_indel)):
+            if not path or not Path(path).exists():
+                raise RuntimeError(
+                    f"{label} file not found: {path!r}. Expected e.g. "
+                    "data/cadd/whole_genome_SNVs.tsv.gz (+ .tbi)."
+                )
+            tbi = str(path) + ".tbi"
+            if not Path(tbi).exists():
+                raise RuntimeError(f"Tabix index missing for CADD file: {tbi!r}.")
+        plugin_args = [
+            "--dir_plugins", str(CONDA_PLUGINS),
+            "--plugin", f"CADD,{cadd_snv},{cadd_indel}",
         ]
-        if cache_dir:
-            cmd.extend(["--dir_cache", str(cache_dir)])
-        try:
-            print(f"[VEP] Running: {' '.join(cmd)}")
-            subprocess.run(cmd, check=True, timeout=3600)
-            # bgzip if needed
-            if out_p.suffix == ".gz" and not out_p.exists():
-                # vep may output uncompressed
-                alt = out_p.with_suffix("")
-                if alt.exists():
-                    subprocess.run(["bgzip", "-c", str(alt)], stdout=open(out_p, "wb"), check=True)
-            return str(out_p)
-        except Exception as e:
-            print(f"[VEP] Native VEP failed ({e}), falling back to pass-through")
 
-    # Try Docker VEP (ensemblorg/ensembl-vep)
-    # Only if docker daemon is actually accessible
-    if _has_docker_vep() and cache_dir and Path(cache_dir).exists():
-        try:
-            # quick docker check
-            result = subprocess.run(["docker", "info"], capture_output=True, timeout=5)
-            if result.returncode == 0:
-                cmd = [
-                    "docker", "run", "--rm",
-                    "-v", f"{in_p.parent}:/in",
-                    "-v", f"{out_p.parent}:/out",
-                ]
-                if cache_dir:
-                    cmd.extend(["-v", f"{cache_dir}:/opt/vep/.vep"])
-                cmd.extend([
-                    "ensemblorg/ensembl-vep",
-                    "vep",
-                    "-i", f"/in/{in_p.name}",
-                    "-o", f"/out/{out_p.name}",
-                    "--cache", "--offline", "--vcf", "--force_overwrite",
-                    "--assembly", "GRCh38",
-                ])
-                print(f"[VEP] Trying docker: {' '.join(cmd)}")
-                subprocess.run(cmd, check=True, timeout=3600)
-                return str(out_p)
-        except Exception as e:
-            print(f"[VEP] Docker VEP failed ({e}), falling back")
+    vep_cmd = cmd + [
+        "-i", str(in_p),
+        "-o", str(out_p),
+        "--vcf",
+        "--cache",
+        "--offline",
+        "--force_overwrite",
+        "--assembly", "GRCh38",
+        "--symbol", "--canonical", "--hgvs", "--mane",
+        "--af_gnomad",
+        "--fork", str(fork),
+        "--fasta", str(fasta),
+        "--dir_cache", str(cache),
+    ] + plugin_args
+    print(f"[VEP] Running: {' '.join(vep_cmd)}")
+    try:
+        subprocess.run(vep_cmd, check=True, timeout=timeout)
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(
+            f"VEP exited with code {e.returncode}. Command: {' '.join(vep_cmd)}"
+        ) from e
+    except subprocess.TimeoutExpired as e:
+        raise RuntimeError(
+            f"VEP timed out after {timeout}s on {in_vcf!r}."
+        ) from e
 
-    # Fallback: pass-through copy with mock annotation tag
-    print(f"[VEP] No VEP cache/binary usable. Passing through {in_p} -> {out_p} (mock annotation)")
-    # Use stream copy (handle gz)
-    if str(in_p).endswith(".gz") and str(out_p).endswith(".gz"):
-        shutil.copy2(in_p, out_p)
-    else:
-        # decompress/compress as needed
-        import gzip as gz
-        with gz.open(in_p, 'rt') if str(in_p).endswith(".gz") else open(in_p) as fin:
-            # ensure bgzip for .gz output
-            if str(out_p).endswith(".gz"):
-                with gz.open(out_p, 'wt') as fout:
-                    for line in fin:
-                        # Tag VCF header that this is mock-annotated
-                        if line.startswith("##fileformat") and "VEP_MOCK" not in line:
-                            fout.write(line)
-                            fout.write("##INFO=<ID=VEP_MOCK,Number=0,Type=Flag,Description=\"VEP annotation not run - baseline pass-through\">\n")
-                        else:
-                            fout.write(line)
-            else:
-                with open(out_p, 'w') as fout:
-                    fout.write(fin.read())
+    if not out_p.exists() or out_p.stat().st_size == 0:
+        raise RuntimeError(
+            f"VEP produced no output at {out_p!r} (input: {in_vcf!r})."
+        )
+    n = sum(1 for line in open(out_p) if not line.startswith("#"))
+    if n == 0 and sum(1 for line in open(in_p) if not line.startswith("#")) > 0:
+        raise RuntimeError(
+            f"VEP dropped all variants (0 data lines in {out_p!r}). "
+            "Likely cause: input contigs missing from cache "
+            "(check data/vep_cache/homo_sapiens/113_GRCh38/)."
+        )
     return str(out_p)
 
 
 if __name__ == "__main__":
     import argparse
-    p = argparse.ArgumentParser(description="VEP annotate helper")
+    p = argparse.ArgumentParser(description="VEP annotate helper (fail fast)")
     p.add_argument("-i", "--input", required=True)
     p.add_argument("-o", "--output", required=True)
     p.add_argument("--cache", default=None)
+    p.add_argument("--fasta", default=None)
+    p.add_argument("--fork", type=int, default=2)
+    p.add_argument("--cadd_snv", default=None,
+                   help="CADD whole_genome_SNVs.tsv.gz (enables --plugin CADD)")
+    p.add_argument("--cadd_indel", default=None,
+                   help="CADD gnomad.*.indel.tsv.gz (enables --plugin CADD)")
     a = p.parse_args()
-    print(annotate_vcf(a.input, a.output, a.cache))
+    print(annotate_vcf(a.input, a.output, a.cache, a.fasta, a.fork,
+                       cadd_snv=a.cadd_snv, cadd_indel=a.cadd_indel))

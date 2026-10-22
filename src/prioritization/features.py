@@ -112,9 +112,15 @@ def build_features(variant_row: dict) -> dict:
             rare_score = 0.05
 
     # --- Consequence ---
-    csq = variant_row.get("CSQ") or variant_row.get("Consequence") or ""
+    # Prefer the single first-transcript value (_parse_info already extracted
+    # it from CSQ); fall back to raw CSQ only if needed.
+    csq = variant_row.get("Consequence") or variant_row.get("CSQ") or ""
+    is_inferred = False
     if not csq:
-        # Infer from REF/ALT length if no annotation
+        # No annotation (e.g. raw VCF without VEP): infer from REF/ALT length.
+        # Gamow lesson: never let an *inferred* consequence outrank a real
+        # annotation. Cap inferred weights below their annotated equivalents.
+        is_inferred = True
         ref = str(variant_row.get("REF", ""))
         alt = str(variant_row.get("ALT", ""))
         if len(ref) != len(alt):
@@ -131,6 +137,10 @@ def build_features(variant_row: dict) -> dict:
     # Take max weight among listed
     weights = [CONSEQUENCE_WEIGHTS.get(c.strip(), 0.5) for c in cons_list if c.strip()]
     consequence_weight = max(weights) if weights else 0.5
+    if is_inferred:
+        # Penalize guesses: inferred frameshift 1.0 -> 0.7, inferred
+        # missense 0.8 -> 0.6. A real VEP annotation always wins ties.
+        consequence_weight = min(consequence_weight, 0.7 if "frameshift" in str(csq) else 0.6)
 
     # --- CADD / REVEL ---
     cadd = variant_row.get("CADD_PHRED") or variant_row.get("CADD") or variant_row.get("CADD_raw")
@@ -141,8 +151,12 @@ def build_features(variant_row: dict) -> dict:
     if cadd_f is not None:
         cadd_norm = min(max(cadd_f / 30.0, 0.0), 1.0)  # PHRED 30 ~ top 0.1%
     else:
-        # heuristic: high consequence → pseudo-CADD 20, otherwise 10
-        cadd_norm = 0.7 if consequence_weight >= 0.8 else 0.35
+        # heuristic: high consequence → pseudo-CADD 20, otherwise 10.
+        # If consequence itself was inferred, be less confident (0.55/0.3).
+        if is_inferred:
+            cadd_norm = 0.55 if consequence_weight >= 0.6 else 0.3
+        else:
+            cadd_norm = 0.7 if consequence_weight >= 0.8 else 0.35
 
     # --- ClinVar ---
     clin = str(variant_row.get("CLIN_SIG") or variant_row.get("ClinVar") or "").lower()
@@ -196,4 +210,5 @@ def build_features(variant_row: dict) -> dict:
         "quality_score": quality_score,
         "pathogenicity_score": pathogenicity_score,
         "af": af,
+        "is_inferred": is_inferred,
     }

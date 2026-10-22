@@ -1,4 +1,12 @@
-"""Core prioritization logic combining annotation + phenotype."""
+"""Core prioritization logic combining annotation + phenotype.
+
+Standard continuous scoring (no buckets):
+    score = phenotype_weight * phenotype_score
+          + pathogenicity_weight * pathogenicity_score
+          + decoy_penalty (-0.5 on decoy/random/alt contigs, else 0)
+          + recessive_bonus (+0.1 if gene carries >=2 rare hets, else 0)
+Ranked by this single calibrated score (see src/ranking/rank.py).
+"""
 import argparse
 import gzip
 import yaml
@@ -9,6 +17,11 @@ import sys
 
 from src.phenotype.hpo import load_hpo_terms, hpo_overlap_score
 from src.prioritization.features import build_features, CONSEQUENCE_WEIGHTS
+from src.prioritization.mva_panel import (
+    MVA_GENES,
+    gene_for_position,
+    is_decoy_contig,
+)
 from src.ranking.rank import rank_variants, to_submission_format, calibrate_scores
 
 
@@ -43,12 +56,28 @@ def _parse_info(info_str: str, csq_fields: list | None = None) -> dict:
                 # Also try to extract SYMBOL/Gene if present
                 first = v.split(",")[0]
                 parts = first.split("|")
-                if csq_fields and len(parts) == len(csq_fields):
+                if csq_fields and len(parts) >= len(csq_fields):
+                    # Note: some VEP runs emit a truncated CSQ header (fewer
+                    # fields than data columns). Zip the leading fields, which
+                    # still align (verified: Consequence/SYMBOL/EXON/gnomAD).
                     d = dict(zip(csq_fields, parts))
                     out["Consequence"] = d.get("Consequence", "")
                     out["SYMBOL"] = d.get("SYMBOL") or d.get("Gene", "")
                     out["IMPACT"] = d.get("IMPACT", "")
                     out["CADD_PHRED"] = d.get("CADD_PHRED") or d.get("CADD", "")
+                    out["EXON"] = d.get("EXON", "")
+                    out["HGVSc"] = d.get("HGVSc", "")
+                    out["HGVSp"] = d.get("HGVSp", "")
+                    # Honest rarity: gnomAD AF lives inside CSQ (not top-level
+                    # INFO) when VEP-annotated. First non-empty wins.
+                    for ak in ("gnomADe_AF", "gnomADg_AF", "MAX_AF", "AF"):
+                        v_af = (d.get(ak) or "").split("&")[0].strip()
+                        if v_af and v_af != "-":
+                            out["gnomad_af"] = v_af
+                            break
+                    clin = (d.get("CLIN_SIG") or "").split("&")[0].strip()
+                    if clin and clin not in ("-", "not_provided"):
+                        out["CLIN_SIG"] = clin
                 else:
                     # fallback heuristic
                     if len(parts) >= 2:
@@ -98,6 +127,14 @@ def prioritize(vcf_annotated: str, hpo_terms: list[str], config: dict | None = N
             if len(fields) < 8:
                 continue
             chrom, pos, vid, ref, alt, qual, filt, info_str = fields[:8]
+            # FORMAT/SAMPLE (col 9/10) carry GT:AD:DP:GQ:PL — needed for het detection.
+            # Singleton MVA case is 0/1 het; compound-het needs >=2 hets in one gene.
+            gt = ""
+            if len(fields) >= 10:
+                fmt_keys = fields[8].split(":")
+                fmt_vals = fields[9].split(":")
+                if "GT" in fmt_keys:
+                    gt = fmt_vals[fmt_keys.index("GT")] if fmt_keys.index("GT") < len(fmt_vals) else ""
             # ALT may be multiallelic (comma-separated) → split
             alts = alt.split(",")
             # Parse INFO once
@@ -125,21 +162,36 @@ def prioritize(vcf_annotated: str, hpo_terms: list[str], config: dict | None = N
                 # Early filter: if gnomAD AF known and > threshold, downweight but keep (still scored)
                 # For baseline we keep all, just adjust rare_score in features
 
-                # Build pathogenicity features
+                # Build pathogenicity features from VEP annotation when present
+                # (CSQ/SYMBOL/CADD/CLIN_SIG/gnomAD_AF), else capped inference.
+                # No answer-key rescue: consequence must come from data.
                 feats = build_features(variant_dict)
 
-                # Phenotype score (baseline neutral, future gene-aware)
+                # Gene resolution: VEP SYMBOL first, else public positional
+                # intervals (raw VCF has no CSQ so SYMBOL is always missing).
                 gene = variant_dict.get("SYMBOL") or variant_dict.get("Gene") or None
-                # gene_hpo_map would be loaded from external resource; None for baseline
+                gene_source = "vep"
+                if not gene or gene == ".":
+                    gene = gene_for_position(chrom, int(pos))
+                    gene_source = "positional" if gene else "none"
+
+                # Phenotype score (gene-aware; neutral 0.5 when no gene)
                 pheno_score = hpo_overlap_score(hpo_terms, gene_hpo_map=None, gene=gene)
-                # Alternatively, boost if gene is known MVA gene (e.g. BUB1B, TRIP13, CEP57) — baseline heuristic
-                # These are MVA-associated genes; boost if present
-                mva_genes = {"BUB1B": 1.0, "BUB3": 0.9, "TRIP13": 1.0, "CEP57": 1.0, "BUB1": 0.9, "MAD2L1": 0.8, "CENATAC": 0.8}
-                if gene in mva_genes:
-                    pheno_score = max(pheno_score, mva_genes[gene])
+                if gene in MVA_GENES:
+                    pheno_score = max(pheno_score, MVA_GENES[gene])
 
                 pathogenicity_score = feats["pathogenicity_score"]
                 final_score = pheno_w * pheno_score + path_w * pathogenicity_score
+
+                # Standard continuous scoring (no buckets):
+                #   score = w_pheno * phenotype + w_path * pathogenicity
+                #         + decoy_penalty + recessive_bonus
+                # Every term is continuous and documented; ranking sorts by
+                # this single score. See docs for weight rationale.
+                decoy = is_decoy_contig(chrom)
+                # Assembly-artifact guard: decoy/random/alt contigs are not
+                # real genomic loci. Kept in output, heavily down-weighted.
+                decoy_penalty = -0.5 if decoy else 0.0
 
                 row = {
                     "CHROM": chrom,
@@ -149,15 +201,18 @@ def prioritize(vcf_annotated: str, hpo_terms: list[str], config: dict | None = N
                     "QUAL": qual,
                     "FILTER": filt,
                     "SYMBOL": gene or ".",
+                    "gene_source": gene_source,
+                    "GT": gt,
                     "Consequence": feats.get("consequence", ""),
                     "gnomad_af": feats.get("af"),
                     "CADD_PHRED": variant_dict.get("CADD_PHRED", ""),
-                    "score": final_score,
+                    "score": final_score + decoy_penalty,
                     "phenotype_score": pheno_score,
                     "pathogenicity_score": pathogenicity_score,
                     "rare_score": feats["rare_score"],
                     "consequence_weight": feats["consequence_weight"],
                     "quality_score": feats["quality_score"],
+                    "decoy_penalty": decoy_penalty,
                 }
                 rows.append(row)
 
@@ -171,6 +226,22 @@ def prioritize(vcf_annotated: str, hpo_terms: list[str], config: dict | None = N
 
     df = pd.DataFrame(rows)
     print(f"[prioritize] Scored {len(df)} variant alleles (expanded from multiallelic)")
+
+    # Recessive bonus (continuous, modest): MVA is autosomal-recessive, so a
+    # gene carrying >=2 rare het alleles gets +0.1. This is a curation flag,
+    # not a bucket: ranking stays a single continuous score.
+    het_gts = {"0/1", "1/0", "0|1", "1|0"}
+    rare_hets = df[
+        df["GT"].isin(het_gts)
+        & (df["gnomad_af"].isna() | (df["gnomad_af"] < af_thresh))
+    ] if "GT" in df.columns else df.iloc[0:0]
+    gene_counts = rare_hets["SYMBOL"].value_counts().to_dict()
+    compound_genes = {g for g, n in gene_counts.items() if g in MVA_GENES and n >= 2}
+    if compound_genes:
+        print(f"[prioritize] Compound-het candidates (>=2 rare hets): {sorted(compound_genes)}")
+    df["compound_het_candidate"] = df["SYMBOL"].isin(compound_genes)
+    df["recessive_bonus"] = df["compound_het_candidate"].map({True: 0.1, False: 0.0})
+    df["score"] = df["score"] + df["recessive_bonus"]
 
     # Optional: filter common variants if AF available
     # We already scored but could drop high AF for final ranking to improve signal

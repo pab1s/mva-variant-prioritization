@@ -6,8 +6,7 @@ __pycache__/
 # C extensions
 *.so
 
-# Project specific ignores — MVA DATA PRIVACY (WCG IRB #20252010) — NEVER COMMIT PATIENT DATA
-# Raw controlled data (FASTQ, VCF, BAM, phenotype doc) — re-identification risk, see docs/problem_statement.md
+# Project specific ignores — MVA DATA PRIVACY (WCG IRB #20252010) — NEVER COMMIT PATIENT DATA# Raw controlled data (FASTQ, VCF, BAM, phenotype doc) — re-identification risk, see docs/problem_statement.md
 data/
 **/data/
 *.fastq
@@ -30,6 +29,8 @@ results/
 results/*
 work/
 work/*
+# Local tool binaries (e.g. micromamba installer) — not repo code
+bin/
 .nextflow/
 .nextflow/*
 .nextflow.log*
