@@ -58,7 +58,7 @@ def to_submission_format(ranked_df: pd.DataFrame, out_path: str) -> None:
 
     # Select output columns (keep extras if wanted for inspection)
     base_cols = ["CHROM", "POS", "REF", "ALT", "RANK", "SCORE"]
-    extra_cols = [c for c in ["SYMBOL", "gene_source", "compound_het_candidate", "GT", "Gene", "Consequence", "gnomad_af", "CADD_PHRED", "FILTER", "score", "pathogenicity_score", "phenotype_score", "recessive_bonus", "decoy_penalty"] if c in df.columns]
+    extra_cols = [c for c in ["SYMBOL", "gene_source", "compound_het_candidate", "is_candidate", "ml_score", "GT", "Gene", "Consequence", "gnomad_af", "CADD_PHRED", "FILTER", "score", "pathogenicity_score", "phenotype_score", "recessive_bonus", "decoy_penalty", "rare_score", "consequence_weight", "quality_score", "cadd_norm", "clinvar_score", "QD", "MQ", "DP", "AD_REF", "AD_ALT", "IMPACT", "EXON", "ID", "gene_het_count"] if c in df.columns]
     out_cols = base_cols + extra_cols
 
     df_sorted = df.sort_values("RANK")

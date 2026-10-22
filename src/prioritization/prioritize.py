@@ -127,14 +127,24 @@ def prioritize(vcf_annotated: str, hpo_terms: list[str], config: dict | None = N
             if len(fields) < 8:
                 continue
             chrom, pos, vid, ref, alt, qual, filt, info_str = fields[:8]
-            # FORMAT/SAMPLE (col 9/10) carry GT:AD:DP:GQ:PL — needed for het detection.
-            # Singleton MVA case is 0/1 het; compound-het needs >=2 hets in one gene.
-            gt = ""
+            # FORMAT/SAMPLE (col 9/10) carry GT:AD:DP:GQ:PL — het detection,
+            # allele balance (mosaic signal) and depth for the ranker.
+            gt, ad_ref, ad_alt, dp_samp = "", -1.0, -1.0, -1.0
             if len(fields) >= 10:
                 fmt_keys = fields[8].split(":")
                 fmt_vals = fields[9].split(":")
-                if "GT" in fmt_keys:
-                    gt = fmt_vals[fmt_keys.index("GT")] if fmt_keys.index("GT") < len(fmt_vals) else ""
+                def _fmt(key: str) -> str:
+                    return fmt_vals[fmt_keys.index(key)] if key in fmt_keys and fmt_keys.index(key) < len(fmt_vals) else ""
+                gt = _fmt("GT")
+                try:
+                    ad_parts = _fmt("AD").split(",")
+                    ad_ref, ad_alt = float(ad_parts[0]), float(ad_parts[1])
+                except (ValueError, IndexError):
+                    pass
+                try:
+                    dp_samp = float(_fmt("DP"))
+                except ValueError:
+                    pass
             # ALT may be multiallelic (comma-separated) → split
             alts = alt.split(",")
             # Parse INFO once
@@ -200,12 +210,23 @@ def prioritize(vcf_annotated: str, hpo_terms: list[str], config: dict | None = N
                     "ALT": alt_allele,
                     "QUAL": qual,
                     "FILTER": filt,
+                    "ID": vid,
                     "SYMBOL": gene or ".",
                     "gene_source": gene_source,
                     "GT": gt,
+                    "AD_REF": ad_ref,
+                    "AD_ALT": ad_alt,
+                    "DP": dp_samp if dp_samp >= 0 else variant_dict.get("DP", ""),
+                    "QD": variant_dict.get("QD", ""),
+                    "MQ": variant_dict.get("MQ", ""),
+                    "IMPACT": variant_dict.get("IMPACT", ""),
+                    "EXON": variant_dict.get("EXON", ""),
                     "Consequence": feats.get("consequence", ""),
                     "gnomad_af": feats.get("af"),
                     "CADD_PHRED": variant_dict.get("CADD_PHRED", ""),
+                    "cadd_norm": feats["cadd_norm"],
+                    "clinvar_score": feats["clinvar_score"],
+                    "clinvar_score": feats["clinvar_score"],
                     "score": final_score + decoy_penalty,
                     "phenotype_score": pheno_score,
                     "pathogenicity_score": pathogenicity_score,
@@ -242,6 +263,55 @@ def prioritize(vcf_annotated: str, hpo_terms: list[str], config: dict | None = N
     df["compound_het_candidate"] = df["SYMBOL"].isin(compound_genes)
     df["recessive_bonus"] = df["compound_het_candidate"].map({True: 0.1, False: 0.0})
     df["score"] = df["score"] + df["recessive_bonus"]
+    # Per-gene rare-het burden (recessive signal, also an ML feature)
+    df["gene_het_count"] = df["SYMBOL"].map(rare_hets["SYMBOL"].value_counts().to_dict()).fillna(0).astype(int)
+
+    # Retrieval stage (recsys): cheap high-recall candidate flag.
+    # Candidates get ML-scored below; the rest keep the heuristic score.
+    from src.ml.candidates import is_candidate
+    from src.prioritization.mva_panel import is_primary_contig
+    df["is_candidate"] = [
+        is_candidate(
+            {"af": af, "consequence_weight": cw, "clinvar_score": cs},
+            gene, set(MVA_GENES), filt, is_primary_contig(chrom),
+        )
+        for af, cw, cs, gene, filt, chrom in zip(
+            df["gnomad_af"], df["consequence_weight"], df["clinvar_score"]
+            if "clinvar_score" in df.columns else [0.5] * len(df),
+            df["SYMBOL"], df["FILTER"], df["CHROM"],
+        )
+    ]
+    print(f"[prioritize] Candidates (retrieval): {int(df['is_candidate'].sum())} / {len(df)}")
+
+    # Ranking stage: optional local LightGBM LambdaRank (no services).
+    # --model models/ranker.txt -> ML score blended 0.7/0.3 over heuristic.
+    model_path = config.get("model", None)
+    if model_path:
+        from src.ml.rank_features import FEATURES, row_to_vector
+        import lightgbm as lgb
+        import json as _json
+        mp = Path(model_path)
+        if not mp.exists():
+            raise RuntimeError(f"Ranker model not found: {model_path!r}. Train it with src/ml/train_ranker.py")
+        feat_path = mp.parent / "features.json"
+        expected = _json.loads(feat_path.read_text()) if feat_path.exists() else FEATURES
+        if expected != FEATURES:
+            raise RuntimeError(f"Feature mismatch: model trained on {expected}, code has {FEATURES}")
+        booster = lgb.Booster(model_file=str(mp))
+        cand = df[df["is_candidate"]].copy()
+        X = [row_to_vector(r, set(MVA_GENES)) for r in cand.to_dict("records")]
+        import numpy as _np
+        ml_raw = booster.predict(_np.array(X, dtype=float))
+        # min-max ML output, blend with heuristic, then global calibrate later
+        lo, hi = float(ml_raw.min()), float(ml_raw.max())
+        ml_norm = (ml_raw - lo) / (hi - lo) if hi > lo else ml_raw * 0.0 + 0.5
+        w = float(config.get("model_weight", 0.7))
+        df.loc[df["is_candidate"], "ml_score"] = ml_norm
+        df.loc[df["is_candidate"], "score"] = (
+            w * ml_norm + (1 - w) * cand["score"].to_numpy()
+        )
+        df["ml_score"] = df["ml_score"].fillna(-1.0)
+        print(f"[prioritize] Ranked {len(cand)} candidates with {mp.name} (blend w={w})")
 
     # Optional: filter common variants if AF available
     # We already scored but could drop high AF for final ranking to improve signal
@@ -276,6 +346,7 @@ def main():
     parser.add_argument("-o", "--output", required=True, help="Output ranked CSV")
     parser.add_argument("--config", default="config/example_config.yaml", help="Pipeline config YAML")
     parser.add_argument("--max-variants", type=int, default=None, help="Limit variants for debugging")
+    parser.add_argument("--model", default=None, help="LightGBM ranker model (models/ranker.txt) — local, optional")
     args = parser.parse_args()
 
     # Load HPO
@@ -290,6 +361,8 @@ def main():
         print(f"[main] Loaded config: {cfg}")
     if args.max_variants:
         cfg["max_variants"] = args.max_variants
+    if args.model:
+        cfg["model"] = args.model
 
     ranked = prioritize(args.vcf, hpo_terms, config=cfg)
 
