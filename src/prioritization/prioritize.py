@@ -35,7 +35,7 @@ def _parse_vcf_header(vcf_path: str) -> dict:
                 # Format: CSQ field description contains Format: Allele|Consequence|...
                 if "Format:" in line:
                     fmt = line.split("Format:")[1].split('"')[0].strip()
-                    csq_fields = [x.strip() for x in fmt.split("|")]
+                    csq_fields = [x.strip().strip('>"') for x in fmt.split("|")]
             if line.startswith("#CHROM"):
                 break
     return {"csq_fields": csq_fields}
@@ -68,6 +68,12 @@ def _parse_info(info_str: str, csq_fields: list | None = None) -> dict:
                     out["EXON"] = d.get("EXON", "")
                     out["HGVSc"] = d.get("HGVSc", "")
                     out["HGVSp"] = d.get("HGVSp", "")
+                    # ClinVar significance: cache's own CLIN_SIG column is empty
+                    # in this build; the --custom file appends ClinVar_CLNSIG
+                    # as trailing CSQ fields (header lists them, aligned).
+                    clin = (d.get("CLIN_SIG") or d.get("ClinVar_CLNSIG") or "").split("&")[0].strip()
+                    if clin and clin not in ("-", "not_provided"):
+                        out["CLIN_SIG"] = clin
                     # Honest rarity: gnomAD AF lives inside CSQ (not top-level
                     # INFO) when VEP-annotated. First non-empty wins.
                     for ak in ("gnomADe_AF", "gnomADg_AF", "MAX_AF", "AF"):
@@ -75,9 +81,6 @@ def _parse_info(info_str: str, csq_fields: list | None = None) -> dict:
                         if v_af and v_af != "-":
                             out["gnomad_af"] = v_af
                             break
-                    clin = (d.get("CLIN_SIG") or "").split("&")[0].strip()
-                    if clin and clin not in ("-", "not_provided"):
-                        out["CLIN_SIG"] = clin
                 else:
                     # fallback heuristic
                     if len(parts) >= 2:

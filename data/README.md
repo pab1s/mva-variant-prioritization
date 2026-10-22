@@ -11,6 +11,8 @@ data/
   references/    GRCh38.fa + .fai (+ no-alt .gz source)
   interim/       Expensive intermediates: full.vep.vcf.gz (5M VEP-annotated) + .tbi
   vep_cache/     Ensembl VEP 113 GRCh38 cache (extracted homo_sapiens/ + tmp/ downloads)
+  clinvar/       ClinVar GRCh38 VCF + .tbi (labels for training + --custom CLIN_SIG)
+  hpo/           genes_to_phenotype.txt + hp.obo (gene-phenotype map + ontology)
   cadd/          CADD v1.7 GRCh38 pre-scored files (whole_genome_SNVs + indel + .tbi)
   .cache/        Hugging Face download cache
 ```

@@ -52,7 +52,8 @@ def annotate_vcf(in_vcf: str, out_vcf: str, cache_dir: str | None = None,
                  fasta: str | None = None, fork: int = 2,
                  timeout: int = 7200,
                  cadd_snv: str | None = None,
-                 cadd_indel: str | None = None) -> str:
+                 cadd_indel: str | None = None,
+                 clinvar: str | None = None) -> str:
     """Annotate VCF with VEP. Raises on any failure - never passes through.
 
     Args:
@@ -98,6 +99,21 @@ def annotate_vcf(in_vcf: str, out_vcf: str, cache_dir: str | None = None,
             "--plugin", f"CADD,{cadd_snv},{cadd_indel}",
         ]
 
+    # ClinVar as --custom (verified: cache's own CLIN_SIG column is empty in
+    # this build; values arrive as INFO ClinVar / ClinVar_CLNSIG).
+    custom_args: list[str] = []
+    if clinvar:
+        if not Path(clinvar).exists():
+            raise RuntimeError(f"ClinVar VCF not found: {clinvar!r}.")
+        if not Path(str(clinvar) + ".tbi").exists():
+            raise RuntimeError(f"ClinVar tabix index missing: {clinvar}.tbi")
+        custom_args = ["--custom", f"{clinvar},ClinVar,vcf,overlap,0,CLNSIG"]
+
+    # --everything: enables all annotation sources, including the variation
+    # overlap that carries Existing_variation (ClinVar ALLELEID) and CLIN_SIG.
+    # An explicit flag list looks cleaner but silently leaves those columns
+    # EMPTY in VEP 113 (verified empirically). SIFT/PolyPhen auto-disable
+    # offline; --mane/--fasta kept explicit for HGVS.
     vep_cmd = cmd + [
         "-i", str(in_p),
         "-o", str(out_p),
@@ -106,12 +122,12 @@ def annotate_vcf(in_vcf: str, out_vcf: str, cache_dir: str | None = None,
         "--offline",
         "--force_overwrite",
         "--assembly", "GRCh38",
-        "--symbol", "--canonical", "--hgvs", "--mane",
-        "--af_gnomad",
+        "--everything",
+        "--mane",
         "--fork", str(fork),
         "--fasta", str(fasta),
         "--dir_cache", str(cache),
-    ] + plugin_args
+    ] + plugin_args + custom_args
     print(f"[VEP] Running: {' '.join(vep_cmd)}")
     try:
         subprocess.run(vep_cmd, check=True, timeout=timeout)
@@ -150,6 +166,9 @@ if __name__ == "__main__":
                    help="CADD whole_genome_SNVs.tsv.gz (enables --plugin CADD)")
     p.add_argument("--cadd_indel", default=None,
                    help="CADD gnomad.*.indel.tsv.gz (enables --plugin CADD)")
+    p.add_argument("--clinvar", default=None,
+                   help="ClinVar VCF.gz + .tbi (enables --custom ClinVar CLNSIG)")
     a = p.parse_args()
     print(annotate_vcf(a.input, a.output, a.cache, a.fasta, a.fork,
-                       cadd_snv=a.cadd_snv, cadd_indel=a.cadd_indel))
+                       cadd_snv=a.cadd_snv, cadd_indel=a.cadd_indel,
+                       clinvar=a.clinvar))
