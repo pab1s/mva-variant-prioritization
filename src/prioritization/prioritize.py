@@ -225,6 +225,7 @@ def prioritize(vcf_annotated: str, hpo_terms: list[str], config: dict | None = N
                     "IMPACT": variant_dict.get("IMPACT", ""),
                     "EXON": variant_dict.get("EXON", ""),
                     "Consequence": feats.get("consequence", ""),
+                    "CLIN_SIG": variant_dict.get("CLIN_SIG", ""),
                     "gnomad_af": feats.get("af"),
                     "CADD_PHRED": variant_dict.get("CADD_PHRED", ""),
                     "cadd_norm": feats["cadd_norm"],

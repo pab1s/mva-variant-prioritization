@@ -168,7 +168,10 @@ if __name__ == "__main__":
                    help="CADD gnomad.*.indel.tsv.gz (enables --plugin CADD)")
     p.add_argument("--clinvar", default=None,
                    help="ClinVar VCF.gz + .tbi (enables --custom ClinVar CLNSIG)")
+    p.add_argument("--timeout", type=int, default=7200,
+                   help="VEP subprocess timeout in seconds")
     a = p.parse_args()
     print(annotate_vcf(a.input, a.output, a.cache, a.fasta, a.fork,
+                       timeout=a.timeout,
                        cadd_snv=a.cadd_snv, cadd_indel=a.cadd_indel,
                        clinvar=a.clinvar))
