@@ -17,7 +17,7 @@ FEATURES = [
     "qd_norm",
     "mq_norm",
     "phenotype_score",   # 1 MVA gene / 0.5 neutral
-    "is_mva_gene",
+    "is_panel_gene",
     "is_het",            # 0/1 or phased het
     "is_novel",          # no rsID
     "filt_pass",
@@ -43,7 +43,7 @@ def _f(x, default=0.0) -> float:
         return default
 
 
-def row_to_vector(row: dict, mva_genes: set[str]) -> list[float]:
+def row_to_vector(row: dict, panel_genes: set[str]) -> list[float]:
     """Scored-row dict (from prioritize) -> fixed feature vector.
 
     `row` keys used: rare_score, consequence_weight, Consequence, IMPACT,
@@ -86,7 +86,7 @@ def row_to_vector(row: dict, mva_genes: set[str]) -> list[float]:
         min(_f(row.get("QD"), 0.0) / 15.0, 1.0),
         min(_f(row.get("MQ"), 0.0) / 60.0, 1.0),
         _f(row.get("phenotype_score"), 0.5),
-        1.0 if gene in mva_genes else 0.0,
+        1.0 if gene in panel_genes else 0.0,
         1.0 if gt in ("0/1", "1/0", "0|1", "1|0") else 0.0,
         1.0 if vid in ("", ".", "None") or not vid.startswith("rs") else 0.0,
         1.0 if str(row.get("FILTER", "")) in ("PASS", ".", "", "None") else 0.0,

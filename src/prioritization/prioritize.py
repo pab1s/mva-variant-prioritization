@@ -18,10 +18,11 @@ import sys
 from src.phenotype.hpo import load_hpo_terms, hpo_overlap_score
 from src.phenotype.resnik import load_phenotype_model
 from src.prioritization.features import build_features, CONSEQUENCE_WEIGHTS
-from src.prioritization.mva_panel import (
-    MVA_GENES,
-    gene_for_position,
+from src.prioritization.gene_panel import (
     is_decoy_contig,
+    is_primary_contig,
+    gene_for_position,
+    load_panel,
 )
 from src.ranking.rank import rank_variants, to_submission_format, calibrate_scores
 
@@ -108,6 +109,10 @@ def prioritize(vcf_annotated: str, hpo_terms: list[str], config: dict | None = N
     # optional filters for speed
     max_variants = config.get("max_variants", None)  # for debugging: limit rows
     min_qd = config.get("min_qd", None)
+    # Inheritance model for the recessive bonus (recessive|dominant|any).
+    # Dominant diseases don't reward multi-het genes; set bonus 0 to disable.
+    inheritance = str(config.get("inheritance", "recessive")).lower()
+    recessive_w = float(config.get("recessive_bonus", 0.1))
 
     # Phenotype model (Resnik over public HPO ontology + annotations).
     # None -> neutral 0.5 per gene (pathogenicity drives ranking).
@@ -117,6 +122,12 @@ def prioritize(vcf_annotated: str, hpo_terms: list[str], config: dict | None = N
         config.get("hpo_annotations", "data/hpo/genes_to_phenotype.txt"),
         hpo_terms_all,
     )
+
+    # Disease panel: manual (config gene_panel) or data-driven top-N HPO
+    # genes (panel_source: hpo). Swap the config for a new disease.
+    panel_genes, panel_intervals = load_panel(config, gene_hpo_scores)
+    print(f"[prioritize] Panel: {len(panel_genes)} genes "
+          f"(source={config.get('panel_source', 'manual')})")
 
     # Load header to know CSQ fields
     header_info = _parse_vcf_header(vcf_annotated)
@@ -195,7 +206,7 @@ def prioritize(vcf_annotated: str, hpo_terms: list[str], config: dict | None = N
                 gene = variant_dict.get("SYMBOL") or variant_dict.get("Gene") or None
                 gene_source = "vep"
                 if not gene or gene == ".":
-                    gene = gene_for_position(chrom, int(pos))
+                    gene = gene_for_position(chrom, int(pos), panel_intervals)
                     gene_source = "positional" if gene else "none"
 
                 # Phenotype score: Resnik ontology similarity when available
@@ -206,8 +217,8 @@ def prioritize(vcf_annotated: str, hpo_terms: list[str], config: dict | None = N
                     pheno_score = gene_hpo_scores[gene]
                 else:
                     pheno_score = hpo_overlap_score(hpo_terms, gene_hpo_map=None, gene=gene)
-                if gene in MVA_GENES:
-                    pheno_score = max(pheno_score, MVA_GENES[gene])
+                if gene in panel_genes:
+                    pheno_score = max(pheno_score, panel_genes[gene])
 
                 pathogenicity_score = feats["pathogenicity_score"]
                 final_score = pheno_w * pheno_score + path_w * pathogenicity_score
@@ -268,20 +279,24 @@ def prioritize(vcf_annotated: str, hpo_terms: list[str], config: dict | None = N
     df = pd.DataFrame(rows)
     print(f"[prioritize] Scored {len(df)} variant alleles (expanded from multiallelic)")
 
-    # Recessive bonus (continuous, modest): MVA is autosomal-recessive, so a
-    # gene carrying >=2 rare het alleles gets +0.1. This is a curation flag,
-    # not a bucket: ranking stays a single continuous score.
+    # Inheritance-aware pair bonus (continuous, modest). For recessive
+    # diseases, a panel gene carrying >=2 rare het alleles gets +bonus
+    # (compound-het pattern). Disabled unless inheritance == "recessive".
+    # This is a curation flag, not a bucket: ranking stays continuous.
     het_gts = {"0/1", "1/0", "0|1", "1|0"}
     rare_hets = df[
         df["GT"].isin(het_gts)
         & (df["gnomad_af"].isna() | (df["gnomad_af"] < af_thresh))
     ] if "GT" in df.columns else df.iloc[0:0]
     gene_counts = rare_hets["SYMBOL"].value_counts().to_dict()
-    compound_genes = {g for g, n in gene_counts.items() if g in MVA_GENES and n >= 2}
+    if inheritance == "recessive":
+        compound_genes = {g for g, n in gene_counts.items() if g in panel_genes and n >= 2}
+    else:
+        compound_genes = set()
     if compound_genes:
         print(f"[prioritize] Compound-het candidates (>=2 rare hets): {sorted(compound_genes)}")
     df["compound_het_candidate"] = df["SYMBOL"].isin(compound_genes)
-    df["recessive_bonus"] = df["compound_het_candidate"].map({True: 0.1, False: 0.0})
+    df["recessive_bonus"] = df["compound_het_candidate"].map({True: recessive_w, False: 0.0})
     df["score"] = df["score"] + df["recessive_bonus"]
     # Per-gene rare-het burden (recessive signal, also an ML feature)
     df["gene_het_count"] = df["SYMBOL"].map(rare_hets["SYMBOL"].value_counts().to_dict()).fillna(0).astype(int)
@@ -289,11 +304,10 @@ def prioritize(vcf_annotated: str, hpo_terms: list[str], config: dict | None = N
     # Retrieval stage (recsys): cheap high-recall candidate flag.
     # Candidates get ML-scored below; the rest keep the heuristic score.
     from src.ml.candidates import is_candidate
-    from src.prioritization.mva_panel import is_primary_contig
     df["is_candidate"] = [
         is_candidate(
             {"af": af, "consequence_weight": cw, "clinvar_score": cs},
-            gene, set(MVA_GENES), filt, is_primary_contig(chrom),
+            gene, set(panel_genes), filt, is_primary_contig(chrom),
         )
         for af, cw, cs, gene, filt, chrom in zip(
             df["gnomad_af"], df["consequence_weight"], df["clinvar_score"]
@@ -319,7 +333,7 @@ def prioritize(vcf_annotated: str, hpo_terms: list[str], config: dict | None = N
             raise RuntimeError(f"Feature mismatch: model trained on {expected}, code has {FEATURES}")
         booster = lgb.Booster(model_file=str(mp))
         cand = df[df["is_candidate"]].copy()
-        X = [row_to_vector(r, set(MVA_GENES)) for r in cand.to_dict("records")]
+        X = [row_to_vector(r, set(panel_genes)) for r in cand.to_dict("records")]
         import numpy as _np
         ml_raw = booster.predict(_np.array(X, dtype=float))
         # min-max ML output, blend with heuristic, then global calibrate later

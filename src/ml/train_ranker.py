@@ -26,7 +26,8 @@ from sklearn.isotonic import IsotonicRegression
 from src.ml.rank_features import FEATURES, row_to_vector
 
 
-def load_labeled(scored_path: str, labels_path: str, query_col: str = "SYMBOL"):
+def load_labeled(scored_path: str, labels_path: str, query_col: str = "SYMBOL",
+                 panel_genes: set | None = None):
     scored = pd.read_csv(scored_path)
     labels = pd.read_csv(labels_path)
     key = ["CHROM", "POS", "REF", "ALT"]
@@ -41,13 +42,8 @@ def load_labeled(scored_path: str, labels_path: str, query_col: str = "SYMBOL"):
         merged = merged[~missing].copy()
     if query_col not in merged.columns:
         raise RuntimeError(f"query column {query_col!r} not in merged data")
-    mva = set()
-    try:
-        from src.prioritization.mva_panel import MVA_GENES
-        mva = set(MVA_GENES)
-    except ImportError:
-        pass
-    X = np.array([row_to_vector(r, mva) for r in merged.to_dict("records")], dtype=float)
+    panel = set(panel_genes or ())
+    X = np.array([row_to_vector(r, panel) for r in merged.to_dict("records")], dtype=float)
     y = merged["label"].to_numpy(dtype=int)
     q = merged[query_col].astype(str)
     groups = q.groupby(q).size().loc[q.unique()].to_numpy() if len(q) else np.array([len(q)])
@@ -62,6 +58,10 @@ def main():
     p.add_argument("--labels", required=True, help="labeled CSV (CHROM,POS,REF,ALT,label)")
     p.add_argument("--outdir", default="models", help="where to write ranker.txt etc.")
     p.add_argument("--query", default="SYMBOL", help="grouping column for lambdarank")
+    p.add_argument("--config", default="config/example_config.yaml",
+                   help="pipeline config (reads panel_genes for the panel flag feature)")
+    p.add_argument("--panel", default=None,
+                   help="comma-separated panel genes (overrides config; empty disables)")
     p.add_argument("--seed", type=int, default=7)
     p.add_argument("--num-leaves", type=int, default=31)
     p.add_argument("--min-data-in-leaf", type=int, default=20)
@@ -69,7 +69,19 @@ def main():
     p.add_argument("--rounds", type=int, default=200)
     a = p.parse_args()
 
-    X, y, qids, groups, merged = load_labeled(a.scored, a.labels, a.query)
+    from src.prioritization.gene_panel import load_panel
+    if a.panel is not None:
+        panel_genes = {g.strip() for g in a.panel.split(",") if g.strip()}
+    else:
+        cfg = {}
+        try:
+            import yaml
+            if Path(a.config).exists():
+                cfg = yaml.safe_load(open(a.config)) or {}
+        except Exception:
+            pass
+        panel_genes, _ = load_panel(cfg)
+    X, y, qids, groups, merged = load_labeled(a.scored, a.labels, a.query, panel_genes)
     print(f"[train] {len(y)} labeled rows, {y.sum()} positives, {len(np.unique(qids))} queries, {X.shape[1]} features")
     if y.sum() == 0:
         raise RuntimeError("No positive labels — ranker has nothing to learn")

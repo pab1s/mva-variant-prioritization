@@ -118,8 +118,7 @@ def build_features(variant_row: dict) -> dict:
     is_inferred = False
     if not csq:
         # No annotation (e.g. raw VCF without VEP): infer from REF/ALT length.
-        # Gamow lesson: never let an *inferred* consequence outrank a real
-        # annotation. Cap inferred weights below their annotated equivalents.
+        # Never let an *inferred* consequence outrank a real annotation.
         is_inferred = True
         ref = str(variant_row.get("REF", ""))
         alt = str(variant_row.get("ALT", ""))

@@ -100,7 +100,8 @@ def annotate_vcf(in_vcf: str, out_vcf: str, cache_dir: str | None = None,
         ]
 
     # ClinVar as --custom (verified: cache's own CLIN_SIG column is empty in
-    # this build; values arrive as INFO ClinVar / ClinVar_CLNSIG).
+    # this build; VEP appends the custom fields to the CSQ tail, and
+    # _parse_info reads ClinVar_CLNSIG from there).
     custom_args: list[str] = []
     if clinvar:
         if not Path(clinvar).exists():
