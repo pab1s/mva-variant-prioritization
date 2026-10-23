@@ -65,7 +65,9 @@ def load_gene_annotations(path: str) -> dict[str, set[str]]:
             if len(parts) < 3:
                 continue
             symbol, hpo = parts[1].strip(), parts[2].strip()
-            if symbol and hpo.startswith("HP:"):
+            if not symbol or symbol in ("-", "."):
+                continue  # annotation rows without gene symbol
+            if hpo.startswith("HP:"):
                 genes.setdefault(symbol, set()).add(hpo)
     return genes
 

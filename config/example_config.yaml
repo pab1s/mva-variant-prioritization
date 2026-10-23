@@ -10,21 +10,15 @@ output_dir: "results/"
 # Baseline tuning
 min_qd: null        # e.g. 2.0 to filter low QD
 max_variants: null  # set e.g. 100000 for quick debug runs
-# Disease model — swap for a new disease (no code change needed)
+# Disease model — generic knobs, no hard-coded genes (panel comes from HPO)
 inheritance: "recessive"   # recessive | dominant | any (gates the pair bonus)
 recessive_bonus: 0.1       # score bonus for >=2 rare hets in a panel gene
-panel_source: "manual"     # manual | hpo (hpo = top-N Resnik genes, no hand-written list)
+panel_source: "hpo"        # hpo (top-N Resnik genes) | manual (explicit gene_panel below)
 panel_top_n: 100           # only for panel_source: hpo
-# Disease gene panel (public OMIM/HPO/ClinGen curation). Genes need only a
-# weight for SYMBOL matching; chrom/start/end add positional rescue on raw VCFs.
-gene_panel:
-  BUB1B:   {weight: 1.0, chrom: "15", start: 40161069, end: 40221123}
-  TRIP13:  {weight: 1.0, chrom: "5",  start: 892884,   end: 919357}
-  CEP57:   {weight: 1.0, chrom: "11", start: 95789965, end: 95832693}
-  BUB3:    {weight: 0.9}
-  BUB1:    {weight: 0.9}
-  MAD2L1:  {weight: 0.8}
-  CENATAC: {weight: 0.8}
+# Optional manual panel override (clinician differential). Example shape:
+# gene_panel:
+#   GENE1: {weight: 1.0, chrom: "1", start: 1000, end: 2000}
+#   GENE2: {weight: 0.9}
 # HPO
 hpo_terms: "config/hpo_terms.yaml"
 hpo_obo: "data/hpo/hp.obo"

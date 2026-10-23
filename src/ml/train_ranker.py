@@ -71,6 +71,7 @@ def main():
 
     from src.prioritization.gene_panel import load_panel
     if a.panel is not None:
+        # Explicit user list (e.g. the differential used at scoring time).
         panel_genes = {g.strip() for g in a.panel.split(",") if g.strip()}
     else:
         cfg = {}
@@ -80,6 +81,8 @@ def main():
                 cfg = yaml.safe_load(open(a.config)) or {}
         except Exception:
             pass
+        cfg = dict(cfg)
+        cfg["panel_source"] = "manual"  # training never invents a panel
         panel_genes, _ = load_panel(cfg)
     X, y, qids, groups, merged = load_labeled(a.scored, a.labels, a.query, panel_genes)
     print(f"[train] {len(y)} labeled rows, {y.sum()} positives, {len(np.unique(qids))} queries, {X.shape[1]} features")
