@@ -16,6 +16,7 @@ from tqdm import tqdm
 import sys
 
 from src.phenotype.hpo import load_hpo_terms, hpo_overlap_score
+from src.phenotype.resnik import load_phenotype_model
 from src.prioritization.features import build_features, CONSEQUENCE_WEIGHTS
 from src.prioritization.mva_panel import (
     MVA_GENES,
@@ -108,6 +109,15 @@ def prioritize(vcf_annotated: str, hpo_terms: list[str], config: dict | None = N
     max_variants = config.get("max_variants", None)  # for debugging: limit rows
     min_qd = config.get("min_qd", None)
 
+    # Phenotype model (Resnik over public HPO ontology + annotations).
+    # None -> neutral 0.5 per gene (pathogenicity drives ranking).
+    hpo_terms_all = hpo_terms  # loaded by caller
+    gene_hpo_scores = load_phenotype_model(
+        config.get("hpo_obo", "data/hpo/hp.obo"),
+        config.get("hpo_annotations", "data/hpo/genes_to_phenotype.txt"),
+        hpo_terms_all,
+    )
+
     # Load header to know CSQ fields
     header_info = _parse_vcf_header(vcf_annotated)
     csq_fields = header_info["csq_fields"]
@@ -188,8 +198,14 @@ def prioritize(vcf_annotated: str, hpo_terms: list[str], config: dict | None = N
                     gene = gene_for_position(chrom, int(pos))
                     gene_source = "positional" if gene else "none"
 
-                # Phenotype score (gene-aware; neutral 0.5 when no gene)
-                pheno_score = hpo_overlap_score(hpo_terms, gene_hpo_map=None, gene=gene)
+                # Phenotype score: Resnik ontology similarity when available
+                # (continuous 0..1 from public HPO annotations), neutral 0.5
+                # for unannotated genes. Explicit MVA panel boost kept as a
+                # documented prior on top.
+                if gene_hpo_scores is not None and gene and gene in gene_hpo_scores:
+                    pheno_score = gene_hpo_scores[gene]
+                else:
+                    pheno_score = hpo_overlap_score(hpo_terms, gene_hpo_map=None, gene=gene)
                 if gene in MVA_GENES:
                     pheno_score = max(pheno_score, MVA_GENES[gene])
 

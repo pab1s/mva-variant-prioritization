@@ -12,3 +12,5 @@ min_qd: null        # e.g. 2.0 to filter low QD
 max_variants: null  # set e.g. 100000 for quick debug runs
 # HPO
 hpo_terms: "config/hpo_terms.yaml"
+hpo_obo: "data/hpo/hp.obo"
+hpo_annotations: "data/hpo/genes_to_phenotype.txt"
