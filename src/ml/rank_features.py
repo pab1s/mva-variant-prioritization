@@ -1,98 +1,141 @@
-"""Fixed numeric feature vector for the ranker. All features are local:
-VCF fields + VEP CSQ + HPO config. No external services at train or
-predict time. Every accessor is defensive: missing data -> neutral default.
+"""Ranker feature schema — the single source of truth for train/serve parity.
+
+`derive_frame(df)` turns a raw annotation row (VEP CSQ fields + lookups +
+per-query phenotype features) into the fixed numeric feature vector the
+LightGBM ranker consumes. It is called BOTH:
+
+  - at training time on dataset rows produced by src/ml/make_dataset.py, and
+  - at inference time on prioritize() rows for candidate variants.
+
+so any change here applies identically to training and inference. Raw keys
+required per row (all optional/defensive, missing -> neutral default):
+
+    gnomad_af, Consequence, IMPACT, CADD_PHRED, CLIN_SIG, EXON,
+    canonical, mane, am_pathogenicity, gene_loeuf, gene_pli,
+    gene_clinvar_path_count,
+    pheno_resnik, pheno_bma, pheno_jaccard, pheno_terms_matched,
+    pheno_excluded_overlap, gene_hpo_count, gene_disease_count
+
+Deliberately EXCLUDED (no public counterpart at training time; live only in
+the separate heuristic system): is_het, ab_dev, dp_norm, quality_score,
+qd/mq_norm, gene_het_count, compound_het_candidate, filt_pass.
+No gene lists (MVA panel etc.) are features — the model is disease-agnostic.
 """
+from __future__ import annotations
+
+import numpy as np
+import pandas as pd
+
+from src.prioritization.features import CONSEQUENCE_WEIGHTS
 
 FEATURES = [
-    "rare_score",        # 0-1, 1 = absent/ultra-rare in gnomAD
-    "consequence_weight",  # 0-1 VEP SO severity
-    "is_lof",            # stop_gained/frameshift/splice
+    # rarity / consequence / pathogenicity (static)
+    "rare_score",
+    "consequence_weight",
+    "is_lof",
     "is_missense",
     "is_splice",
-    "impact_ord",        # HIGH 3 / MODERATE 2 / LOW 1 / MODIFIER 0
-    "cadd_norm",         # 0-1 (real CADD_PHRED/30 when plugin present)
-    "cadd_missing",      # 1 if CADD was heuristic
-    "clinvar_score",     # 1 pathogenic / 0.5 unknown / 0.1 benign
-    "quality_score",     # QD/MQ/FS/FILTER aggregate
-    "qd_norm",
-    "mq_norm",
-    "phenotype_score",   # 1 MVA gene / 0.5 neutral
-    "is_panel_gene",
-    "is_het",            # 0/1 or phased het
-    "is_novel",          # no rsID
-    "filt_pass",
-    "ab_dev",            # |0.5 - ALT/(REF+ALT)| allele balance deviation
-    "dp_norm",           # log-scaled depth
-    "exon_frac",         # EXON n/N -> n/N (NMD relevance), -1 if n/a
-    "gene_het_count",    # rare hets in same gene (recessive signal)
-    "compound_het_candidate",
+    "impact_ord",
+    "cadd_norm",
+    "cadd_missing",
+    "clinvar_score",
+    "canonical",
+    "mane",
+    "am_norm",
+    "loeuf_norm",
+    "pli_norm",
+    "gene_path_count",
+    "exon_frac",
+    # phenotype / gene-level (query-dependent)
+    "pheno_resnik",
+    "pheno_bma",
+    "pheno_jaccard",
+    "pheno_terms_matched",
+    "pheno_excluded_overlap",
+    "gene_hpo_count",
+    "gene_disease_count",
 ]
 
-LOF_CONS = {"stop_gained", "frameshift_variant", "splice_acceptor_variant",
-            "splice_donor_variant", "transcript_ablation", "start_lost"}
+LOF_CONSEQUENCES = frozenset({
+    "stop_gained", "frameshift_variant", "splice_acceptor_variant",
+    "splice_donor_variant", "transcript_ablation", "start_lost",
+})
 IMPACT_ORD = {"HIGH": 3.0, "MODERATE": 2.0, "LOW": 1.0, "MODIFIER": 0.0}
 
 
-def _f(x, default=0.0) -> float:
+def _f(x, default: float = 0.0) -> float:
     try:
         v = float(x)
-        if v != v:  # NaN
-            return default
-        return v
+        return default if v != v else v  # NaN -> default
     except (TypeError, ValueError):
         return default
 
 
-def row_to_vector(row: dict, panel_genes: set[str]) -> list[float]:
-    """Scored-row dict (from prioritize) -> fixed feature vector.
+def derive_frame(df: pd.DataFrame) -> pd.DataFrame:
+    """Raw annotation columns -> FEATURES columns (vectorized, defensive)."""
+    out = pd.DataFrame(index=df.index)
 
-    `row` keys used: rare_score, consequence_weight, Consequence, IMPACT,
-    CADD_PHRED, cadd_missing?, clinvar_score, quality_score, QD, MQ,
-    phenotype_score, SYMBOL, gene_source, GT, ID, FILTER, AD_REF, AD_ALT,
-    DP, EXON, gene_het_count, compound_het_candidate.
-    """
-    cons = str(row.get("Consequence", "") or "")
-    impact = str(row.get("IMPACT", "") or "").upper()
-    gene = row.get("SYMBOL") or ""
-    gt = str(row.get("GT", "") or "")
-    vid = str(row.get("ID", "") or "")
-    ad_ref, ad_alt = _f(row.get("AD_REF"), -1), _f(row.get("AD_ALT"), -1)
-    if ad_ref >= 0 and ad_alt >= 0 and (ad_ref + ad_alt) > 0:
-        ab_dev = abs(0.5 - ad_alt / (ad_ref + ad_alt))
-    else:
-        ab_dev = 0.5  # unknown -> neutral-ish (not het-like, not hom-like)
-    exon = str(row.get("EXON", "") or "")
-    try:
-        n, m = exon.split("/")
-        exon_frac = float(n) / float(m)
-    except (ValueError, ZeroDivisionError):
-        exon_frac = -1.0
-    cadd_raw = row.get("CADD_PHRED")
-    try:
-        cadd_missing = 0.0 if (cadd_raw not in (None, "", ".")) else 1.0
-    except TypeError:
-        cadd_missing = 1.0
-    return [
-        _f(row.get("rare_score"), 1.0),
-        _f(row.get("consequence_weight"), 0.5),
-        1.0 if cons in LOF_CONS else 0.0,
-        1.0 if cons == "missense_variant" else 0.0,
-        1.0 if "splice" in cons else 0.0,
-        IMPACT_ORD.get(impact, 0.0),
-        _f(row.get("cadd_norm"), 0.3),
-        cadd_missing,
-        _f(row.get("clinvar_score"), 0.5),
-        _f(row.get("quality_score"), 0.5),
-        min(_f(row.get("QD"), 0.0) / 15.0, 1.0),
-        min(_f(row.get("MQ"), 0.0) / 60.0, 1.0),
-        _f(row.get("phenotype_score"), 0.5),
-        1.0 if gene in panel_genes else 0.0,
-        1.0 if gt in ("0/1", "1/0", "0|1", "1|0") else 0.0,
-        1.0 if vid in ("", ".", "None") or not vid.startswith("rs") else 0.0,
-        1.0 if str(row.get("FILTER", "")) in ("PASS", ".", "", "None") else 0.0,
-        ab_dev,
-        min(_f(row.get("DP"), 0.0) / 60.0, 1.0),
-        exon_frac,
-        min(_f(row.get("gene_het_count"), 0.0) / 5.0, 1.0),
-        1.0 if row.get("compound_het_candidate") in (True, 1, "True", "true") else 0.0,
-    ]
+    af = pd.to_numeric(df.get("gnomad_af"), errors="coerce")
+    out["rare_score"] = np.where(
+        af.isna(), 1.0,
+        np.where(af < 0.001, 1.0,
+                 np.where(af < 0.01, 0.9,
+                          np.where(af < 0.05, 0.6,
+                                   np.where(af < 0.5, 0.3, 0.05)))))
+
+    cons = df.get("Consequence", pd.Series("", index=df.index)).fillna("").astype(str)
+    cw = cons.map(lambda c: max((CONSEQUENCE_WEIGHTS.get(k, 0.1)
+                                 for k in c.split("&")), default=0.1))
+    out["consequence_weight"] = cw
+    out["is_lof"] = cons.map(
+        lambda c: float(any(k in LOF_CONSEQUENCES for k in c.split("&"))))
+    out["is_missense"] = cons.str.contains("missense_variant", na=False).astype(float)
+    out["is_splice"] = cons.str.contains("splice", na=False).astype(float)
+
+    impact = df.get("IMPACT", pd.Series("", index=df.index)).fillna("").str.upper()
+    out["impact_ord"] = impact.map(lambda i: IMPACT_ORD.get(i, 0.0))
+
+    cadd = pd.to_numeric(df.get("CADD_PHRED"), errors="coerce")
+    out["cadd_norm"] = (cadd / 30.0).clip(0, 1).fillna(0.3)
+    out["cadd_missing"] = cadd.isna().astype(float)
+
+    clin = df.get("CLIN_SIG", pd.Series("", index=df.index)).fillna("").str.lower()
+    out["clinvar_score"] = np.where(
+        clin.str.contains("pathogenic") & ~clin.str.contains("benign"), 1.0,
+        np.where(clin.str.contains("benign"), 0.1, 0.5))
+
+    out["canonical"] = pd.to_numeric(df.get("canonical"), errors="coerce").fillna(0.0)
+    out["mane"] = pd.to_numeric(df.get("mane"), errors="coerce").fillna(0.0)
+
+    am = pd.to_numeric(df.get("am_pathogenicity"), errors="coerce")
+    out["am_norm"] = am.fillna(0.5)
+
+    loeuf = pd.to_numeric(df.get("gene_loeuf"), errors="coerce")
+    out["loeuf_norm"] = (1.0 - (loeuf / 2.0).clip(0, 1)).fillna(0.5)
+    pli = pd.to_numeric(df.get("gene_pli"), errors="coerce")
+    out["pli_norm"] = pli.fillna(0.5)
+
+    gpc = pd.to_numeric(df.get("gene_clinvar_path_count"), errors="coerce").fillna(0)
+    out["gene_path_count"] = (np.log1p(gpc) / np.log1p(1000)).clip(0, 1)
+
+    exon = df.get("EXON", pd.Series("", index=df.index)).fillna("").astype(str)
+    def _exon_frac(e: str) -> float:
+        try:
+            n, m = e.split("/")
+            return float(n) / float(m)
+        except (ValueError, ZeroDivisionError, AttributeError):
+            return -1.0
+    out["exon_frac"] = exon.map(_exon_frac)
+
+    for col in ("pheno_resnik", "pheno_bma", "pheno_jaccard",
+                "pheno_terms_matched", "pheno_excluded_overlap",
+                "gene_hpo_count", "gene_disease_count"):
+        out[col] = pd.to_numeric(df.get(col), errors="coerce").fillna(0.0)
+
+    return out[FEATURES]
+
+
+def row_to_vector(row) -> list[float]:
+    """Single-row convenience wrapper (dict or Series) -> feature vector."""
+    df = derive_frame(pd.DataFrame([dict(row)]))
+    return df.iloc[0].to_numpy(dtype=float).tolist()

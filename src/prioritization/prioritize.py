@@ -76,6 +76,8 @@ def _parse_info(info_str: str, csq_fields: list | None = None) -> dict:
                     clin = (d.get("CLIN_SIG") or d.get("ClinVar_CLNSIG") or "").split("&")[0].strip()
                     if clin and clin not in ("-", "not_provided"):
                         out["CLIN_SIG"] = clin
+                    out["canonical"] = 1 if d.get("CANONICAL") == "YES" else 0
+                    out["mane"] = 1 if d.get("MANE_SELECT") not in ("", None, "-") else 0
                     # Honest rarity: gnomAD AF lives inside CSQ (not top-level
                     # INFO) when VEP-annotated. First non-empty wins.
                     for ak in ("gnomADe_AF", "gnomADg_AF", "MAX_AF", "AF"):
@@ -142,6 +144,43 @@ def prioritize(vcf_annotated: str, hpo_terms: list[str], config: dict | None = N
     total = None
     if max_variants:
         total = max_variants
+
+    # Phenotype engine: real Resnik similarity vs the query HPO terms (offline).
+    # Produces per-gene phenotype features (train/serve parity via GeneHPO)
+    # and the phenotype gate used by candidate generation.
+    pheno_for_gene = None
+    gate: dict[str, float] = {}
+    if hpo_terms:
+        try:
+            from src.phenotype.hpo_ontology import HPOOntology
+            from src.phenotype.gene_hpo import GeneHPO
+            from src.ml.candidates import PHENO_GATE_MIN_NORM
+            hpo_dir = Path(config.get("hpo_dir", "data/hpo"))
+            ont = HPOOntology(hpo_dir / "hp.obo")
+            gh = GeneHPO(hpo_dir / "genes_to_phenotype.txt", ont)
+            qterms = {t for t in hpo_terms if ont.is_known(t)}
+            norm = ont.query_norm_factor(qterms)
+            gate = {g: v for g, v in gh.genes_with_similarity(qterms).items()
+                    if v > PHENO_GATE_MIN_NORM}
+            cache: dict = {}
+
+            def pheno_for_gene(gene):
+                if not gene or gene == ".":
+                    return None
+                blk = cache.get(gene)
+                if blk is None:
+                    blk = gh.gene_similarity(qterms, gene, norm)
+                    cache[gene] = blk
+                return blk
+            print(f"[prioritize] phenotype engine: {len(qterms)} HPO terms -> "
+                  f"{len(gate)} genes in retrieval gate")
+        except FileNotFoundError as e:
+            print(f"[prioritize] WARNING: HPO index missing ({e}); "
+                  "phenotype falls back to neutral 0.5")
+
+    PHENO_ZERO = {"pheno_resnik": 0.0, "pheno_bma": 0.0, "pheno_jaccard": 0.0,
+                  "pheno_terms_matched": 0.0, "pheno_excluded_overlap": 0.0,
+                  "gene_hpo_count": 0.0, "gene_disease_count": 0.0}
 
     with opener(vcf_annotated, 'rt') as f:
         for line in tqdm(f, desc="Scoring variants", unit=" var", total=total):
@@ -255,6 +294,8 @@ def prioritize(vcf_annotated: str, hpo_terms: list[str], config: dict | None = N
                     "CLIN_SIG": variant_dict.get("CLIN_SIG", ""),
                     "gnomad_af": feats.get("af"),
                     "CADD_PHRED": variant_dict.get("CADD_PHRED", ""),
+                    "canonical": variant_dict.get("canonical", 0),
+                    "mane": variant_dict.get("mane", 0),
                     "cadd_norm": feats["cadd_norm"],
                     "clinvar_score": feats["clinvar_score"],
                     "clinvar_score": feats["clinvar_score"],
@@ -301,51 +342,145 @@ def prioritize(vcf_annotated: str, hpo_terms: list[str], config: dict | None = N
     # Per-gene rare-het burden (recessive signal, also an ML feature)
     df["gene_het_count"] = df["SYMBOL"].map(rare_hets["SYMBOL"].value_counts().to_dict()).fillna(0).astype(int)
 
-    # Retrieval stage (recsys): cheap high-recall candidate flag.
-    # Candidates get ML-scored below; the rest keep the heuristic score.
-    from src.ml.candidates import is_candidate
+    # ---- Candidate generation (retrieval stage): shared rules with training
+    # (src/ml/candidates.py). `gate` = genes whose normalized max-Resnik to
+    # the query HPO terms exceeds PHENO_GATE_MIN_NORM (built by the phenotype
+    # engine above); the disease panel is an optional domain prior on top and
+    # is never a model feature (ranker stays disease-agnostic).
+    from src.ml.candidates import is_candidate as _is_candidate
     df["is_candidate"] = [
-        is_candidate(
-            {"af": af, "consequence_weight": cw, "clinvar_score": cs},
-            gene, set(panel_genes), filt, is_primary_contig(chrom),
-        )
-        for af, cw, cs, gene, filt, chrom in zip(
-            df["gnomad_af"], df["consequence_weight"], df["clinvar_score"]
-            if "clinvar_score" in df.columns else [0.5] * len(df),
-            df["SYMBOL"], df["FILTER"], df["CHROM"],
-        )
+        _is_candidate(af, cons, clin, filt, is_primary_contig(chrom), gene,
+                      gate, set(panel_genes), af_thresh)
+        for af, cons, clin, filt, chrom, gene in zip(
+            df["gnomad_af"], df["Consequence"], df["CLIN_SIG"].fillna(""),
+            df["FILTER"], df["CHROM"], df["SYMBOL"])
     ]
-    print(f"[prioritize] Candidates (retrieval): {int(df['is_candidate'].sum())} / {len(df)}")
+    n_cand = int(df["is_candidate"].sum())
+    print(f"[prioritize] Candidates (structural, AF-free): {n_cand} / {len(df)}")
 
-    # Ranking stage: optional local LightGBM LambdaRank (no services).
-    # --model models/ranker.txt -> ML score blended 0.7/0.3 over heuristic.
+    # ---- gnomAD AF + CADD come from side-files: the --af_* VEP flags cost
+    # ~7.6x the structural pass and CADD-as-plugin ~7x more (measured), so VEP
+    # skips both and they are merged here for candidates only. AF then narrows
+    # the candidate set (ClinVar P/LP is exempt from the rarity rule, exactly
+    # as in src/ml/candidates.py); if the AF side-file is absent every variant
+    # is treated as rare — identical to training when train.af is missing.
+    from src.ml.lookup import load_af, cadd_lookup, vkey as _vkey
+    from src.ml.candidates import is_pathogenic_clinsig as _clin_path
+    af_map = load_af(Path(config.get("af_vcf", "data/interim/full.af.vcf.gz")))
+    cand_idx = df.index[df["is_candidate"]]
+    if len(cand_idx):
+        keys = [_vkey(c, int(p), r, a) for c, p, r, a in
+                zip(df.loc[cand_idx, "CHROM"], df.loc[cand_idx, "POS"],
+                    df.loc[cand_idx, "REF"], df.loc[cand_idx, "ALT"])]
+        # fill AF from the side-file (CSQ has no AF columns in the fast pass)
+        missing = df.loc[cand_idx, "gnomad_af"].isna().to_numpy()
+        for j, i in enumerate(cand_idx):
+            if missing[j] and keys[j] in af_map:
+                df.at[i, "gnomad_af"] = af_map[keys[j]]
+        # rarity gate (parity with the training-time retrieval mask)
+        af = pd.to_numeric(df.loc[cand_idx, "gnomad_af"], errors="coerce")
+        clin = df.loc[cand_idx, "CLIN_SIG"].fillna("").map(_clin_path)
+        rare = af.isna() | (af < af_thresh)
+        keep = (rare | clin).to_numpy()
+        dropped = int((~keep).sum())
+        df.loc[cand_idx[~keep], "is_candidate"] = False
+        cand_idx = cand_idx[keep]
+        keys = [k for k, kk in zip(keys, keep) if kk]
+        print(f"[prioritize] AF side-file: {len(af_map)} entries | "
+              f"common candidates dropped: {dropped} | "
+              f"candidates after rarity: {len(cand_idx)}")
+
+        # CADD for candidates (single tabix pass per CADD file)
+        cadd = cadd_lookup([(c, int(p), r, a) for c, p, r, a in
+                            zip(df.loc[cand_idx, "CHROM"], df.loc[cand_idx, "POS"],
+                                df.loc[cand_idx, "REF"], df.loc[cand_idx, "ALT"])])
+        for i, k in zip(cand_idx, keys):
+            v = cadd.get(k)
+            if v is not None:
+                df.at[i, "CADD_PHRED"] = v
+        print(f"[prioritize] CADD side-file: {len(cadd)} entries "
+              f"({len(cand_idx)} candidates)")
+    print(f"[prioritize] Candidates (final): {len(cand_idx)} / {len(df)}")
+
+    # ---- Ranking stage: local LightGBM LambdaRank, STANDALONE (no blend).
+    # --model models/ranker.txt -> calibrated probability that the variant is
+    # causal (isotonic fitted on held-out val queries at train time).
+    # Non-candidates get a floor score below every candidate (they were
+    # already removed by the high-recall retrieval stage).
     model_path = config.get("model", None)
-    if model_path:
-        from src.ml.rank_features import FEATURES, row_to_vector
+    cand_idx = df.index[df["is_candidate"]]
+    if model_path and len(cand_idx):
         import lightgbm as lgb
         import json as _json
+        import numpy as _np
+        import pickle as _pk
+        from src.ml.rank_features import FEATURES, derive_frame
+        from src.ml.lookup import (load_loeuf, load_gene_path_counts,
+                                   am_lookup, vkey as _vkey)
         mp = Path(model_path)
         if not mp.exists():
-            raise RuntimeError(f"Ranker model not found: {model_path!r}. Train it with src/ml/train_ranker.py")
+            raise RuntimeError(
+                f"Ranker model not found: {model_path!r}. "
+                "Train it with src/ml/train_ranker.py")
         feat_path = mp.parent / "features.json"
         expected = _json.loads(feat_path.read_text()) if feat_path.exists() else FEATURES
-        if expected != FEATURES:
-            raise RuntimeError(f"Feature mismatch: model trained on {expected}, code has {FEATURES}")
+        # Ablation models train on a subset of FEATURES (e.g. no clinvar_score);
+        # the subset must keep FEATURES order so column alignment is guaranteed.
+        if not set(expected).issubset(FEATURES) or \
+                expected != [c for c in FEATURES if c in set(expected)]:
+            raise RuntimeError(
+                f"Feature mismatch: model trained on {expected}, code has {FEATURES}")
         booster = lgb.Booster(model_file=str(mp))
-        cand = df[df["is_candidate"]].copy()
-        X = [row_to_vector(r, set(panel_genes)) for r in cand.to_dict("records")]
-        import numpy as _np
-        ml_raw = booster.predict(_np.array(X, dtype=float))
-        # min-max ML output, blend with heuristic, then global calibrate later
-        lo, hi = float(ml_raw.min()), float(ml_raw.max())
-        ml_norm = (ml_raw - lo) / (hi - lo) if hi > lo else ml_raw * 0.0 + 0.5
-        w = float(config.get("model_weight", 0.7))
-        df.loc[df["is_candidate"], "ml_score"] = ml_norm
-        df.loc[df["is_candidate"], "score"] = (
-            w * ml_norm + (1 - w) * cand["score"].to_numpy()
-        )
+
+        cand = df.loc[cand_idx].copy()
+        # phenotype feature block (same GeneHPO engine as training)
+        PHENO_COLS = ("pheno_resnik", "pheno_bma", "pheno_jaccard",
+                      "pheno_terms_matched", "pheno_excluded_overlap",
+                      "gene_hpo_count", "gene_disease_count")
+        if pheno_for_gene is not None:
+            genes = set(cand["SYMBOL"].dropna()) - {".", ""}
+            blk = {g: (pheno_for_gene(g) or PHENO_ZERO) for g in genes}
+            for col in PHENO_COLS:
+                cand[col] = [blk.get(g, PHENO_ZERO)[col] for g in cand["SYMBOL"]]
+        else:
+            for col in PHENO_COLS:
+                cand[col] = 0.0
+        # gene-level constraint + ClinVar burden (shared lookups w/ training)
+        loeuf_map = load_loeuf()
+        path_counts = load_gene_path_counts()
+        cand["gene_loeuf"] = cand["SYMBOL"].map(
+            lambda g: loeuf_map.get(g, (None, None))[0])
+        cand["gene_pli"] = cand["SYMBOL"].map(
+            lambda g: loeuf_map.get(g, (None, None))[1])
+        cand["gene_clinvar_path_count"] = (
+            cand["SYMBOL"].map(path_counts).fillna(0).astype(int))
+        # AlphaMissense for missense candidates (one tabix pass)
+        miss = cand[cand["Consequence"].fillna("").str.contains("missense")]
+        am = am_lookup([(r.CHROM, int(r.POS), r.REF, r.ALT)
+                        for r in miss.itertuples()])
+        cand["am_pathogenicity"] = [
+            am.get(_vkey(c, p, r, a), (None, ""))[0]
+            for c, p, r, a in cand[["CHROM", "POS", "REF", "ALT"]].itertuples(index=False)]
+
+        X = derive_frame(cand)[expected].to_numpy(dtype=_np.float32)
+        raw = booster.predict(X)
+        calib_path = mp.parent / "calib.pkl"
+        if calib_path.exists():
+            iso = _pk.loads(calib_path.read_bytes())
+            cal = iso.predict(raw)
+        else:
+            print("[prioritize] WARNING: models/calib.pkl missing — raw scores")
+            cal = raw
+        floor = float(cal.min()) * 0.5 if len(cal) else 0.0
+        df["heuristic_score"] = df["score"]
+        df["score"] = floor
+        df.loc[cand_idx, "score"] = cal
+        df.loc[cand_idx, "ml_score"] = raw
         df["ml_score"] = df["ml_score"].fillna(-1.0)
-        print(f"[prioritize] Ranked {len(cand)} candidates with {mp.name} (blend w={w})")
+        print(f"[prioritize] ML-ranked {len(cand)} candidates with {mp.name} "
+              f"(standalone, isotonic-calibrated)")
+    elif model_path:
+        print("[prioritize] WARNING: model given but zero candidates — heuristic only")
 
     # Optional: filter common variants if AF available
     # We already scored but could drop high AF for final ranking to improve signal
@@ -365,8 +500,10 @@ def prioritize(vcf_annotated: str, hpo_terms: list[str], config: dict | None = N
 
         pass
 
-    # Calibrate for F-max
-    df = calibrate_scores(df, "score")
+    # Calibrate for F-max (heuristic path only — the ML path is already
+    # isotonic-calibrated on held-out val queries at train time)
+    if not (model_path and len(cand_idx)):
+        df = calibrate_scores(df, "score")
 
     # Rank
     ranked = rank_variants(df, score_col="score")

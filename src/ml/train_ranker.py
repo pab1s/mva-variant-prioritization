@@ -1,21 +1,26 @@
-"""Train the LightGBM LambdaRank ensemble — fully offline.
+"""Train the LightGBM LambdaRank variant ranker (standalone, no blend).
 
-Input 1: scored CSV from `prioritize` (must contain FEATURES columns +
-         CHROM/POS/REF/ALT/SYMBOL). Produce with:
-           python -m src.prioritization.prioritize --vcf ... --hpo ... -o scored.csv
-Input 2: labeled CSV with CHROM,POS,REF,ALT,label (1 = causal, 0 = benign)
-         [+ optional query column, default SYMBOL]. This is YOUR df.
+Input: dataset CSVs from `src/ml/make_dataset.py queries` (dataset_train/val
+CSV.gz) — rows carry raw annotation columns + per-query phenotype features +
+graded label (0 benign, 1 P/LP 1-star, 2 P/LP >=2 stars, 3 case causal) +
+query_id.
 
-Output: models/ranker.txt (booster) + models/features.json (schema guard)
-        + models/calib.pkl (isotonic calibrator for F-max) + models/metrics.json
+Output (models/):
+  ranker.txt     booster (predict -> uncalibrated ranking score)
+  features.json  schema guard (FEATURES list; prioritize checks it)
+  calib.pkl      isotonic calibrator fitted on VAL predictions (for F-max)
+  metrics.json   val metrics: NDCG@1/3/10, recall@1/3/10, MRR, Rank Points,
+                 calibration (ECE/Brier/F-max)
 
 Usage:
-  python -m src.ml.train_ranker --scored scored.csv --labels labels.csv \
-      --outdir models/ --query SYMBOL
+  python -m src.ml.train_ranker --train data/ml/dataset_train.csv.gz \
+      --val data/ml/dataset_val.csv.gz --outdir models/
 """
+from __future__ import annotations
 
 import argparse
 import json
+import pickle as pkl
 from pathlib import Path
 
 import lightgbm as lgb
@@ -23,102 +28,116 @@ import numpy as np
 import pandas as pd
 from sklearn.isotonic import IsotonicRegression
 
-from src.ml.rank_features import FEATURES, row_to_vector
+from src.ml.eval_metrics import calibration_report, summarize
+from src.ml.rank_features import FEATURES, derive_frame
+
+# graded-label gains: benign 0 < P/LP 1* (0.25) < P/LP 2* (1.0) < causal (3.0)
+LABEL_GAIN = [0.0, 0.25, 1.0, 3.0]
 
 
-def load_labeled(scored_path: str, labels_path: str, query_col: str = "SYMBOL",
-                 panel_genes: set | None = None):
-    scored = pd.read_csv(scored_path)
-    labels = pd.read_csv(labels_path)
-    key = ["CHROM", "POS", "REF", "ALT"]
-    for k in key + ["label"]:
-        if k not in labels.columns:
-            raise RuntimeError(f"labels CSV missing required column {k!r} (has {list(labels.columns)})")
-    merged = labels.merge(scored, on=key, how="left", suffixes=("", "_scored"))
-    missing = merged["SYMBOL"].isna() if "SYMBOL" in merged.columns else None
-    if missing is not None and missing.any():
-        n = int(missing.sum())
-        print(f"[train] WARNING: {n}/{len(merged)} labeled variants not found in scored CSV — dropped")
-        merged = merged[~missing].copy()
-    if query_col not in merged.columns:
-        raise RuntimeError(f"query column {query_col!r} not in merged data")
-    panel = set(panel_genes or ())
-    X = np.array([row_to_vector(r, panel) for r in merged.to_dict("records")], dtype=float)
-    y = merged["label"].to_numpy(dtype=int)
-    q = merged[query_col].astype(str)
-    groups = q.groupby(q).size().loc[q.unique()].to_numpy() if len(q) else np.array([len(q)])
-    # lightgbm wants group sizes in row order: sort by query
-    order = np.argsort(q.to_numpy(), kind="stable")
-    return X[order], y[order], q.to_numpy()[order], groups, merged
+def load_xy(path: str) -> tuple[np.ndarray, np.ndarray, np.ndarray, pd.DataFrame]:
+    """CSV.gz -> X (features), y (graded int), query_id array, raw frame."""
+    df = pd.read_csv(path)
+    X = derive_frame(df).to_numpy(dtype=np.float32)
+    y = df["label"].to_numpy(dtype=int)
+    qid = df["query_id"].astype(str).to_numpy()
+    return X, y, qid, df
 
 
-def main():
-    p = argparse.ArgumentParser(description="Train LightGBM LambdaRank (offline)")
-    p.add_argument("--scored", required=True, help="prioritize output CSV")
-    p.add_argument("--labels", required=True, help="labeled CSV (CHROM,POS,REF,ALT,label)")
-    p.add_argument("--outdir", default="models", help="where to write ranker.txt etc.")
-    p.add_argument("--query", default="SYMBOL", help="grouping column for lambdarank")
-    p.add_argument("--config", default="config/example_config.yaml",
-                   help="pipeline config (reads panel_genes for the panel flag feature)")
-    p.add_argument("--panel", default=None,
-                   help="comma-separated panel genes (overrides config; empty disables)")
-    p.add_argument("--seed", type=int, default=7)
-    p.add_argument("--num-leaves", type=int, default=31)
-    p.add_argument("--min-data-in-leaf", type=int, default=20)
+def groups_for(qid: np.ndarray) -> list[int]:
+    """Contiguous group sizes (rows must be sorted by query_id)."""
+    _, counts = np.unique(qid, return_counts=True)
+    return counts.tolist()
+
+
+def sort_by_query(X, y, qid, seed: int = 7):
+    """Group rows by query (contiguous) AND shuffle within each group.
+
+    The shuffle matters: dataset pools list positives first, so with tied
+    scores both LightGBM's eval and ours would see a lucky high NDCG.
+    Shuffling makes tied-score metrics honest (random baseline).
+    """
+    codes, _ = pd.factorize(qid, sort=True)
+    rng = np.random.default_rng(seed)
+    rand = rng.random(len(qid))
+    order = np.lexsort((rand, codes))
+    return X[order], y[order], qid[order], order
+
+
+def main() -> None:
+    p = argparse.ArgumentParser(description="Train LightGBM LambdaRank (standalone)")
+    p.add_argument("--train", default="data/ml/dataset_train.csv.gz")
+    p.add_argument("--val", default="data/ml/dataset_val.csv.gz")
+    p.add_argument("--outdir", default="models")
+    p.add_argument("--rounds", type=int, default=3000)
+    p.add_argument("--es", type=int, default=100, help="early stopping rounds")
     p.add_argument("--lr", type=float, default=0.05)
-    p.add_argument("--rounds", type=int, default=200)
+    p.add_argument("--leaves", type=int, default=63)
+    p.add_argument("--min-data-in-leaf", type=int, default=50)
+    p.add_argument("--seed", type=int, default=7)
+    p.add_argument("--drop-features", default="",
+                   help="comma-separated FEATURES to drop (ablations)")
     a = p.parse_args()
 
-    from src.prioritization.gene_panel import load_panel
-    if a.panel is not None:
-        # Explicit user list (e.g. the differential used at scoring time).
-        panel_genes = {g.strip() for g in a.panel.split(",") if g.strip()}
-    else:
-        cfg = {}
-        try:
-            import yaml
-            if Path(a.config).exists():
-                cfg = yaml.safe_load(open(a.config)) or {}
-        except Exception:
-            pass
-        cfg = dict(cfg)
-        cfg["panel_source"] = "manual"  # training never invents a panel
-        panel_genes, _ = load_panel(cfg)
-    X, y, qids, groups, merged = load_labeled(a.scored, a.labels, a.query, panel_genes)
-    print(f"[train] {len(y)} labeled rows, {y.sum()} positives, {len(np.unique(qids))} queries, {X.shape[1]} features")
-    if y.sum() == 0:
-        raise RuntimeError("No positive labels — ranker has nothing to learn")
+    Xtr, ytr, qtr, _ = load_xy(a.train)
+    Xva, yva, qva, dva = load_xy(a.val)
+    keep = [f for f in FEATURES if f not in set(a.drop_features.split(","))]
+    idx = [FEATURES.index(f) for f in keep]
+    Xtr, Xva = Xtr[:, idx], Xva[:, idx]
+    print(f"[train] {len(ytr)} train rows ({len(np.unique(qtr))} queries, "
+          f"{int((ytr > 0).sum())} pos), {len(yva)} val rows "
+          f"({len(np.unique(qva))} queries), {Xtr.shape[1]} features "
+          f"(dropped: {a.drop_features or 'none'})")
+
+    Xtr, ytr, qtr, _ = sort_by_query(Xtr, ytr, qtr, seed=a.seed)
+    Xva_s, yva_s, qva_s, va_order = sort_by_query(Xva, yva, qva, seed=a.seed + 1)
+    dva = dva.iloc[va_order].reset_index(drop=True)  # keep metrics row-aligned
+
     params = {
         "objective": "lambdarank",
         "metric": "ndcg",
-        "ndcg_eval_at": [1, 3, 10],
+        "ndcg_eval_at": [10],
+        "label_gain": LABEL_GAIN,
         "learning_rate": a.lr,
-        "num_leaves": a.num_leaves,
+        "num_leaves": a.leaves,
         "min_data_in_leaf": a.min_data_in_leaf,
+        "feature_fraction": 0.8,
+        "lambdarank_truncation_level": 10,
         "verbose": -1,
         "seed": a.seed,
     }
-    ds = lgb.Dataset(X, label=y, group=groups.tolist())
-    booster = lgb.train(params, ds, num_boost_round=a.rounds)
+    dtrain = lgb.Dataset(Xtr, label=ytr, group=groups_for(qtr), free_raw_data=False)
+    dval = lgb.Dataset(Xva_s, label=yva_s, group=groups_for(qva_s),
+                       reference=dtrain, free_raw_data=False)
+    booster = lgb.train(
+        params, dtrain, num_boost_round=a.rounds, valid_sets=[dtrain, dval],
+        valid_names=["train", "val"],
+        callbacks=[lgb.early_stopping(a.es, verbose=True),
+                   lgb.log_evaluation(200)])
+
+    # ---- val metrics (raw ranking + calibrated probabilities)
+    raw_va = booster.predict(Xva_s)
+    iso = IsotonicRegression(out_of_bounds="clip").fit(raw_va, (yva_s > 0).astype(int))
+    cal_va = iso.predict(raw_va)
+    dva = dva.assign(score=raw_va)
+    metrics = summarize(dva)
+    metrics.update({f"calib_{k}": v for k, v in
+                    calibration_report((yva_s > 0).astype(int), cal_va).items()})
+    metrics["best_iteration"] = int(booster.best_iteration or a.rounds)
+    metrics["label_gain"] = LABEL_GAIN
+    metrics["features"] = keep
+
     outdir = Path(a.outdir)
     outdir.mkdir(parents=True, exist_ok=True)
     booster.save_model(str(outdir / "ranker.txt"))
-    (outdir / "features.json").write_text(json.dumps(FEATURES))
-    # Isotonic calibration on train scores (for F-max thresholds).
-    # Small-data honest caveat: refit on your full labeled set when big.
-    train_scores = booster.predict(X)
-    iso = IsotonicRegression(out_of_bounds="clip").fit(train_scores, y)
-    import pickle as _pk
-    (outdir / "calib.pkl").write_bytes(_pk.dumps(iso))
-    # Report in-sample NDCG (optimistic) + top-k hit rate
-    order = np.argsort(-train_scores, kind="stable")
-    ranked_y = y[order]
-    hits = {k: bool(ranked_y[:k].sum()) for k in (1, 3, 10)}
-    (outdir / "metrics.json").write_text(json.dumps(
-        {"n": len(y), "positives": int(y.sum()), "in_sample_topk_hit": hits,
-         "features": FEATURES}, indent=2))
-    print(f"[train] saved ranker.txt + features.json + calib.pkl to {outdir}/")
-    print(f"[train] in-sample top-k hit (optimistic): {hits}")
+    (outdir / "features.json").write_text(json.dumps(keep))
+    (outdir / "calib.pkl").write_bytes(pkl.dumps(iso))
+    (outdir / "metrics.json").write_text(json.dumps(metrics, indent=2))
+    print("[train] val metrics:",
+          json.dumps({k: round(v, 4) for k, v in metrics.items()
+                      if isinstance(v, float)}, indent=1))
+    print(f"[train] saved ranker.txt (iter={metrics['best_iteration']}), "
+          f"features.json, calib.pkl, metrics.json -> {outdir}/")
 
 
 if __name__ == "__main__":

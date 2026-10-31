@@ -253,3 +253,11 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Trained model artifacts (regenerate with src/ml/train_ranker.py)
+models/ranker.txt
+models/features.json
+models/calib.pkl
+models/metrics.json
+models/ablation_*/
+models/ml_no_*/

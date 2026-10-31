@@ -10,6 +10,7 @@ produces a plausible-looking but wrong ranked list (all consequences
 inferred, all variants "rare"). So every failure mode raises instead of
 passing data through.
 """
+import shlex
 import shutil
 import subprocess
 from pathlib import Path
@@ -53,7 +54,10 @@ def annotate_vcf(in_vcf: str, out_vcf: str, cache_dir: str | None = None,
                  timeout: int = 7200,
                  cadd_snv: str | None = None,
                  cadd_indel: str | None = None,
-                 clinvar: str | None = None) -> str:
+                 clinvar: str | None = None,
+                 buffer_size: int | None = None,
+                 everything: bool = True,
+                 extra_args: str = "") -> str:
     """Annotate VCF with VEP. Raises on any failure - never passes through.
 
     Args:
@@ -112,9 +116,11 @@ def annotate_vcf(in_vcf: str, out_vcf: str, cache_dir: str | None = None,
 
     # --everything: enables all annotation sources, including the variation
     # overlap that carries Existing_variation (ClinVar ALLELEID) and CLIN_SIG.
-    # An explicit flag list looks cleaner but silently leaves those columns
-    # EMPTY in VEP 113 (verified empirically). SIFT/PolyPhen auto-disable
-    # offline; --mane/--fasta kept explicit for HGVS.
+    # Measured on this box: --everything / --af_* cost ~7.6x the structural
+    # pass (13k vs 99k rec/min), so callers needing only SYMBOL/EXON/CANONICAL/
+    # MANE/CLIN_SIG pass everything=False plus an explicit --extra flag list.
+    # (Note: --everything implies af_gnomade; adding --af_gnomad explicitly
+    #  errors with "Can't use --af_gnomade and --af_gnomad together".)
     vep_cmd = cmd + [
         "-i", str(in_p),
         "-o", str(out_p),
@@ -123,12 +129,19 @@ def annotate_vcf(in_vcf: str, out_vcf: str, cache_dir: str | None = None,
         "--offline",
         "--force_overwrite",
         "--assembly", "GRCh38",
-        "--everything",
-        "--mane",
         "--fork", str(fork),
         "--fasta", str(fasta),
         "--dir_cache", str(cache),
-    ] + plugin_args + custom_args
+    ]
+    if everything:
+        vep_cmd += ["--everything", "--mane"]
+    # Smaller in-memory batch on RAM-constrained boxes: systemd-oomd kills the
+    # whole scope when RAM+swap pass 90%, so keep VEP's working set small.
+    if buffer_size:
+        vep_cmd += ["--buffer_size", str(buffer_size)]
+    if extra_args:
+        vep_cmd += shlex.split(extra_args)
+    vep_cmd += plugin_args + custom_args
     print(f"[VEP] Running: {' '.join(vep_cmd)}")
     try:
         subprocess.run(vep_cmd, check=True, timeout=timeout)
@@ -169,10 +182,17 @@ if __name__ == "__main__":
                    help="CADD gnomad.*.indel.tsv.gz (enables --plugin CADD)")
     p.add_argument("--clinvar", default=None,
                    help="ClinVar VCF.gz + .tbi (enables --custom ClinVar CLNSIG)")
+    p.add_argument("--buffer_size", type=int, default=None,
+                   help="VEP --buffer_size (lower = less RAM; helps systemd-oomd boxes)")
+    p.add_argument("--no-everything", action="store_true",
+                   help="skip --everything/--mane (fast structural pass)")
+    p.add_argument("--extra", default="",
+                   help="raw VEP flags appended verbatim (quote as one string)")
     p.add_argument("--timeout", type=int, default=7200,
                    help="VEP subprocess timeout in seconds")
     a = p.parse_args()
     print(annotate_vcf(a.input, a.output, a.cache, a.fasta, a.fork,
                        timeout=a.timeout,
                        cadd_snv=a.cadd_snv, cadd_indel=a.cadd_indel,
-                       clinvar=a.clinvar))
+                       clinvar=a.clinvar, buffer_size=a.buffer_size,
+                       everything=not a.no_everything, extra_args=a.extra))

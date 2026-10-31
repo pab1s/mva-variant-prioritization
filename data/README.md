@@ -11,9 +11,19 @@ data/
   references/    GRCh38.fa + .fai (+ no-alt .gz source)
   interim/       Expensive intermediates: full.vep.vcf.gz (5M VEP-annotated) + .tbi
   vep_cache/     Ensembl VEP 113 GRCh38 cache (extracted homo_sapiens/ + tmp/ downloads)
+                 WARNING: extraction must come from the FULL 23.9GB tarball —
+                 a truncated extraction leaves chroms 4-9,X,Y and all _var.gz
+                 (gnomAD AF) files missing (see bin/repair_vep_cache.sh)
   clinvar/       ClinVar GRCh38 VCF + .tbi (labels for training + --custom CLIN_SIG)
   hpo/           genes_to_phenotype.txt + hp.obo (gene-phenotype map + ontology)
   cadd/          CADD v1.7 GRCh38 pre-scored files (whole_genome_SNVs + indel + .tbi)
+  phenopackets/  GA4GH Phenopacket Store 0.1.27 (10,377 public cases: HPO + causal
+                 variant; extracted/0.1.27/<GENE>/*.json) — training + held-out test
+  annotations/   Public model features: LOEUF constraint (Ensembl), AlphaMissense,
+                 VKGL consensus classifications — see docs/PLAN_ml_ranker.md §12
+  ml/            Supervised dataset build (labels/queries/static features/splits)
+                 + VEP-annotated training variants — gitignored, regenerable via
+                 python -m src.ml.make_dataset
   .cache/        Hugging Face download cache
 ```
 
