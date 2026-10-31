@@ -1,5 +1,15 @@
-# HPO terms extracted from clinical description (fill from phenotype data)
+# HPO terms curated from Challenge_Clinical_Phenotype_1.docx (2026-08-29 hackathon doc)
+# Source: data/raw/phenotype/Challenge_Clinical_Phenotype_1.docx — 8 features listed with HPO IDs
+# This is the phenotypic input for variant prioritization (phenotype_weight in example_config.yaml)
 hpo_terms:
-  # - "HP:0000252" # Microcephaly (example)
-  # - "HP:0001166" # Arachnodactyly
-  # Add real terms after curation
+  - "HP:0002859" # Rhabdomyosarcoma — malignant soft tissue tumour, primary oncological event
+  - "HP:0000121" # Nephrocalcinosis — calcium deposits in kidney tissue; present since birth
+  - "HP:0004322" # Short stature — height significantly below expected range
+  - "HP:0001508" # Failure to thrive — poor weight gain & muscle development from early life
+  - "HP:0003202" # Skeletal muscle atrophy — reduced muscle bulk
+  - "HP:0001622" # Premature birth — born at 32 weeks gestation
+  - "HP:0001518" # Small for gestational age — ~1kg at birth, severe IUGR
+  - "HP:0200067" # Recurrent spontaneous abortion — parental history of multiple pregnancy losses
+# Notes:
+# - For MVA, the cluster (cancer + growth restriction + renal + perinatal + reproductive loss) matters more than single term
+# - Parental HP:0200067 is family-history signal for chromosomal instability, keep in input

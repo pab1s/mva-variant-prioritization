@@ -6,8 +6,42 @@ __pycache__/
 # C extensions
 *.so
 
-# Project specific ignores
-data/
+# Project specific ignores — MVA DATA PRIVACY (WCG IRB #20252010) — NEVER COMMIT PATIENT DATA# Raw controlled data (FASTQ, VCF, BAM, phenotype doc) — re-identification risk, see docs/problem_statement.md
+data/*
+!data/README.md
+**/data/*
+!**/data/README.md
+*.fastq
+*.fastq.gz
+*.fq.gz
+*.bam
+*.bam.bai
+*.cram
+*.crai
+*.vcf
+*.vcf.gz
+*.vcf.gz.tbi
+*.gvcf.gz
+*.gvcf.gz.tbi
+Challenge_Clinical_Phenotype*.docx
+*Clinical*Phenotype*.docx
+*phenotype*.docx
+# Derived pipeline outputs — 541M ranked VCF + large QC; keep local, not GitHub (outputs CC BY 4.0 but too large / may contain variant-level PHI)
+results/
+results/*
+work/
+work/*
+# Local tool binaries (e.g. micromamba installer) — not repo code
+bin/
+.nextflow/
+.nextflow/*
+.nextflow.log*
+.nextflow.log.*
+.nextflow_history
+timeline.html
+report.html
+dag.svg
+trace.txt
 
 # Distribution / packaging
 .Python
@@ -219,3 +253,11 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Trained model artifacts (regenerate with src/ml/train_ranker.py)
+models/ranker.txt
+models/features.json
+models/calib.pkl
+models/metrics.json
+models/ablation_*/
+models/ml_no_*/

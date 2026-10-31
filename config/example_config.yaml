@@ -1,8 +1,25 @@
-# Example pipeline configuration
-reference: "/data/references/GRCh38.fa"
-vep_cache: "/data/vep_cache"
+# Example pipeline configuration — MVA baseline
+# Reference genome: GRCh38 without alt contigs (Sentieon haploptyper used GCA_000001405.15)
+reference: "data/references/GRCh38.fa"
+vep_cache: "data/vep_cache"  # set to real cache if available; pipeline auto-detects and falls back if missing (standard: VEP 113 GRCh38)
 gnomad_af_threshold: 0.01
 cadd_threshold: 15
 phenotype_weight: 0.6
 pathogenicity_weight: 0.4
 output_dir: "results/"
+# Baseline tuning
+min_qd: null        # e.g. 2.0 to filter low QD
+max_variants: null  # set e.g. 100000 for quick debug runs
+# Disease model — generic knobs, no hard-coded genes (panel comes from HPO)
+inheritance: "recessive"   # recessive | dominant | any (gates the pair bonus)
+recessive_bonus: 0.1       # score bonus for >=2 rare hets in a panel gene
+panel_source: "hpo"        # hpo (top-N Resnik genes) | manual (explicit gene_panel below)
+panel_top_n: 100           # only for panel_source: hpo
+# Optional manual panel override (clinician differential). Example shape:
+# gene_panel:
+#   GENE1: {weight: 1.0, chrom: "1", start: 1000, end: 2000}
+#   GENE2: {weight: 0.9}
+# HPO
+hpo_terms: "config/hpo_terms.yaml"
+hpo_obo: "data/hpo/hp.obo"
+hpo_annotations: "data/hpo/genes_to_phenotype.txt"
