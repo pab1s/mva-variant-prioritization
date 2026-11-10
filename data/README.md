@@ -8,7 +8,8 @@ data/
     fastq/       8 WGS FASTQs (4 lanes x R1/R2, ~80 GB) — controlled access
     calls/       Provided Sentieon VCF + .tbi (5,012,204 variants) — controlled access
     phenotype/   Challenge_Clinical_Phenotype_1.docx — confidential, do not redistribute
-  references/    GRCh38.fa + .fai (+ no-alt .gz source)
+  references/    GRCh38.fa + .fai (+ no-alt .gz source) + Ensembl 113 proteome
+                 (Homo_sapiens.GRCh38.pep.all.fa.gz, for ESM-2 embeddings)
   interim/       Expensive intermediates: full.vep.vcf.gz (5M VEP-annotated) + .tbi
   vep_cache/     Ensembl VEP 113 GRCh38 cache (extracted homo_sapiens/ + tmp/ downloads)
                  WARNING: extraction must come from the FULL 23.9GB tarball —
@@ -24,6 +25,8 @@ data/
   ml/            Supervised dataset build (labels/queries/static features/splits)
                  + VEP-annotated training variants — gitignored, regenerable via
                  python -m src.ml.make_dataset
+                 + ESM-2 embeddings (esm2_35m_*) — gitignored, regenerable via
+                 python -m src.ml.esm_features build
   .cache/        Hugging Face download cache
 ```
 

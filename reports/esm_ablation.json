@@ -1,0 +1,716 @@
+{
+  "base": {
+    "esm": "none",
+    "n_components": 0,
+    "n_features": 21,
+    "best_iteration": 102,
+    "seconds": 15.9,
+    "importance": {
+      "top15": [
+        {
+          "feature": "gene_path_count",
+          "importance": 842.0
+        },
+        {
+          "feature": "pheno_jaccard",
+          "importance": 722.0
+        },
+        {
+          "feature": "cadd_norm",
+          "importance": 698.0
+        },
+        {
+          "feature": "loeuf_norm",
+          "importance": 686.0
+        },
+        {
+          "feature": "gene_hpo_count",
+          "importance": 604.0
+        },
+        {
+          "feature": "pheno_bma",
+          "importance": 547.0
+        },
+        {
+          "feature": "am_norm",
+          "importance": 411.0
+        },
+        {
+          "feature": "pli_norm",
+          "importance": 337.0
+        },
+        {
+          "feature": "gene_disease_count",
+          "importance": 317.0
+        },
+        {
+          "feature": "consequence_weight",
+          "importance": 275.0
+        },
+        {
+          "feature": "pheno_resnik",
+          "importance": 255.0
+        },
+        {
+          "feature": "pheno_terms_matched",
+          "importance": 210.0
+        },
+        {
+          "feature": "exon_frac",
+          "importance": 194.0
+        },
+        {
+          "feature": "cadd_missing",
+          "importance": 108.0
+        },
+        {
+          "feature": "is_splice",
+          "importance": 43.0
+        }
+      ],
+      "esm_share": 0.0
+    },
+    "test": {
+      "ndcg@1": 0.8371501983887398,
+      "recall@1": 0.856657223796034,
+      "ndcg@3": 0.9170413429659708,
+      "recall@3": 0.9609065155807366,
+      "ndcg@10": 0.9318425327522443,
+      "recall@10": 0.996600566572238,
+      "mrr": 0.9110830199073825,
+      "rank_points": 96.83852691218131,
+      "n_queries": 1765.0,
+      "calib_brier": 0.008459114417048798,
+      "calib_ece": 0.004728221949338333,
+      "calib_fmax": 0.7486194477791117,
+      "calib_fmax_threshold": 0.3356164383561644
+    },
+    "bootstrap_vs_base": {
+      "ndcg10": {
+        "mean_diff": 0.0,
+        "ci95": [
+          0.0,
+          0.0
+        ],
+        "win": 0,
+        "loss": 0,
+        "tie": 1765
+      },
+      "r1": {
+        "mean_diff": 0.0,
+        "ci95": [
+          0.0,
+          0.0
+        ],
+        "win": 0,
+        "loss": 0,
+        "tie": 1765
+      },
+      "rp": {
+        "mean_diff": 0.0,
+        "ci95": [
+          0.0,
+          0.0
+        ],
+        "win": 0,
+        "loss": 0,
+        "tie": 1765
+      }
+    }
+  },
+  "score": {
+    "esm": "score",
+    "n_components": 0,
+    "n_features": 23,
+    "best_iteration": 185,
+    "seconds": 22.2,
+    "importance": {
+      "top15": [
+        {
+          "feature": "gene_path_count",
+          "importance": 1270.0
+        },
+        {
+          "feature": "loeuf_norm",
+          "importance": 1228.0
+        },
+        {
+          "feature": "gene_hpo_count",
+          "importance": 1099.0
+        },
+        {
+          "feature": "pheno_jaccard",
+          "importance": 1090.0
+        },
+        {
+          "feature": "cadd_norm",
+          "importance": 1085.0
+        },
+        {
+          "feature": "pheno_bma",
+          "importance": 830.0
+        },
+        {
+          "feature": "esm_score",
+          "importance": 776.0
+        },
+        {
+          "feature": "am_norm",
+          "importance": 776.0
+        },
+        {
+          "feature": "pli_norm",
+          "importance": 700.0
+        },
+        {
+          "feature": "exon_frac",
+          "importance": 597.0
+        },
+        {
+          "feature": "gene_disease_count",
+          "importance": 569.0
+        },
+        {
+          "feature": "pheno_resnik",
+          "importance": 394.0
+        },
+        {
+          "feature": "consequence_weight",
+          "importance": 389.0
+        },
+        {
+          "feature": "pheno_terms_matched",
+          "importance": 330.0
+        },
+        {
+          "feature": "cadd_missing",
+          "importance": 148.0
+        }
+      ],
+      "esm_share": 0.07009590235396687
+    },
+    "test": {
+      "ndcg@1": 0.8439490652442639,
+      "recall@1": 0.863456090651558,
+      "ndcg@3": 0.920351613386827,
+      "recall@3": 0.9626062322946176,
+      "ndcg@10": 0.93423257994061,
+      "recall@10": 0.9971671388101983,
+      "mrr": 0.9141740730940447,
+      "rank_points": 96.86118980169972,
+      "n_queries": 1765.0,
+      "calib_brier": 0.008449965551805088,
+      "calib_ece": 0.0038975569536088012,
+      "calib_fmax": 0.7361871577899453,
+      "calib_fmax_threshold": 0.2511680908719068
+    },
+    "bootstrap_vs_base": {
+      "ndcg10": {
+        "mean_diff": 0.0023900471883656414,
+        "ci95": [
+          -0.0014107226172668092,
+          0.006093888261637035
+        ],
+        "win": 73,
+        "loss": 72,
+        "tie": 1620
+      },
+      "r1": {
+        "mean_diff": 0.006798866855524079,
+        "ci95": [
+          -0.0022662889518413596,
+          0.01586402266288952
+        ],
+        "win": 39,
+        "loss": 27,
+        "tie": 1699
+      },
+      "rp": {
+        "mean_diff": 0.0226628895184136,
+        "ci95": [
+          -0.1643059490084986,
+          0.2096317280453258
+        ],
+        "win": 72,
+        "loss": 70,
+        "tie": 1623
+      }
+    }
+  },
+  "delta16": {
+    "esm": "delta",
+    "n_components": 16,
+    "n_features": 38,
+    "best_iteration": 157,
+    "seconds": 23.3,
+    "importance": {
+      "top15": [
+        {
+          "feature": "gene_path_count",
+          "importance": 891.0
+        },
+        {
+          "feature": "loeuf_norm",
+          "importance": 865.0
+        },
+        {
+          "feature": "pheno_jaccard",
+          "importance": 843.0
+        },
+        {
+          "feature": "cadd_norm",
+          "importance": 731.0
+        },
+        {
+          "feature": "gene_hpo_count",
+          "importance": 729.0
+        },
+        {
+          "feature": "pheno_bma",
+          "importance": 649.0
+        },
+        {
+          "feature": "pli_norm",
+          "importance": 429.0
+        },
+        {
+          "feature": "gene_disease_count",
+          "importance": 386.0
+        },
+        {
+          "feature": "am_norm",
+          "importance": 345.0
+        },
+        {
+          "feature": "consequence_weight",
+          "importance": 320.0
+        },
+        {
+          "feature": "esm_delta_00",
+          "importance": 304.0
+        },
+        {
+          "feature": "pheno_resnik",
+          "importance": 260.0
+        },
+        {
+          "feature": "pheno_terms_matched",
+          "importance": 248.0
+        },
+        {
+          "feature": "exon_frac",
+          "importance": 239.0
+        },
+        {
+          "feature": "esm_delta_05",
+          "importance": 204.0
+        }
+      ],
+      "esm_share": 0.2653585370865009
+    },
+    "test": {
+      "ndcg@1": 0.8275184703434141,
+      "recall@1": 0.8470254957507082,
+      "ndcg@3": 0.9117245560719751,
+      "recall@3": 0.9580736543909348,
+      "ndcg@10": 0.9270483242184105,
+      "recall@10": 0.9960339943342776,
+      "mrr": 0.9049495908814651,
+      "rank_points": 96.52124645892351,
+      "n_queries": 1765.0,
+      "calib_brier": 0.008775569940097774,
+      "calib_ece": 0.003295997358152125,
+      "calib_fmax": 0.7304442627418914,
+      "calib_fmax_threshold": 0.49206349206349204
+    },
+    "bootstrap_vs_base": {
+      "ndcg10": {
+        "mean_diff": -0.004794208533833876,
+        "ci95": [
+          -0.009049724968207235,
+          -0.0006198870651096435
+        ],
+        "win": 68,
+        "loss": 103,
+        "tie": 1594
+      },
+      "r1": {
+        "mean_diff": -0.009631728045325779,
+        "ci95": [
+          -0.019830028328611898,
+          0.0011331444759206798
+        ],
+        "win": 36,
+        "loss": 53,
+        "tie": 1676
+      },
+      "rp": {
+        "mean_diff": -0.31728045325779036,
+        "ci95": [
+          -0.5495750708215298,
+          -0.10198300283286119
+        ],
+        "win": 66,
+        "loss": 101,
+        "tie": 1598
+      }
+    }
+  },
+  "delta48": {
+    "esm": "delta",
+    "n_components": 48,
+    "n_features": 70,
+    "best_iteration": 160,
+    "seconds": 29.2,
+    "importance": {
+      "top15": [
+        {
+          "feature": "gene_path_count",
+          "importance": 801.0
+        },
+        {
+          "feature": "pheno_jaccard",
+          "importance": 797.0
+        },
+        {
+          "feature": "loeuf_norm",
+          "importance": 701.0
+        },
+        {
+          "feature": "cadd_norm",
+          "importance": 636.0
+        },
+        {
+          "feature": "gene_hpo_count",
+          "importance": 601.0
+        },
+        {
+          "feature": "pheno_bma",
+          "importance": 600.0
+        },
+        {
+          "feature": "gene_disease_count",
+          "importance": 353.0
+        },
+        {
+          "feature": "pli_norm",
+          "importance": 329.0
+        },
+        {
+          "feature": "am_norm",
+          "importance": 293.0
+        },
+        {
+          "feature": "consequence_weight",
+          "importance": 273.0
+        },
+        {
+          "feature": "pheno_terms_matched",
+          "importance": 239.0
+        },
+        {
+          "feature": "pheno_resnik",
+          "importance": 228.0
+        },
+        {
+          "feature": "esm_delta_00",
+          "importance": 217.0
+        },
+        {
+          "feature": "exon_frac",
+          "importance": 184.0
+        },
+        {
+          "feature": "esm_delta_05",
+          "importance": 131.0
+        }
+      ],
+      "esm_share": 0.37016129032258066
+    },
+    "test": {
+      "ndcg@1": 0.8329650126622613,
+      "recall@1": 0.8526912181303116,
+      "ndcg@3": 0.9176970782108372,
+      "recall@3": 0.9637393767705382,
+      "ndcg@10": 0.9308200176445685,
+      "recall@10": 0.9960339943342776,
+      "mrr": 0.9098596532773632,
+      "rank_points": 96.79320113314448,
+      "n_queries": 1765.0,
+      "calib_brier": 0.008546528890137819,
+      "calib_ece": 0.003013242573494746,
+      "calib_fmax": 0.7424115845168476,
+      "calib_fmax_threshold": 0.5797101449275363
+    },
+    "bootstrap_vs_base": {
+      "ndcg10": {
+        "mean_diff": -0.001022515107675988,
+        "ci95": [
+          -0.00504278484420205,
+          0.0030028288415355608
+        ],
+        "win": 82,
+        "loss": 86,
+        "tie": 1597
+      },
+      "r1": {
+        "mean_diff": -0.00396600566572238,
+        "ci95": [
+          -0.014730878186968839,
+          0.006232294617563739
+        ],
+        "win": 40,
+        "loss": 47,
+        "tie": 1678
+      },
+      "rp": {
+        "mean_diff": -0.0453257790368272,
+        "ci95": [
+          -0.24362606232294617,
+          0.141643059490085
+        ],
+        "win": 80,
+        "loss": 84,
+        "tie": 1601
+      }
+    }
+  },
+  "delta96": {
+    "esm": "delta",
+    "n_components": 96,
+    "n_features": 118,
+    "best_iteration": 157,
+    "seconds": 40.7,
+    "importance": {
+      "top15": [
+        {
+          "feature": "pheno_jaccard",
+          "importance": 748.0
+        },
+        {
+          "feature": "gene_path_count",
+          "importance": 709.0
+        },
+        {
+          "feature": "loeuf_norm",
+          "importance": 635.0
+        },
+        {
+          "feature": "cadd_norm",
+          "importance": 600.0
+        },
+        {
+          "feature": "pheno_bma",
+          "importance": 580.0
+        },
+        {
+          "feature": "gene_hpo_count",
+          "importance": 555.0
+        },
+        {
+          "feature": "gene_disease_count",
+          "importance": 319.0
+        },
+        {
+          "feature": "pli_norm",
+          "importance": 307.0
+        },
+        {
+          "feature": "consequence_weight",
+          "importance": 287.0
+        },
+        {
+          "feature": "am_norm",
+          "importance": 280.0
+        },
+        {
+          "feature": "pheno_terms_matched",
+          "importance": 222.0
+        },
+        {
+          "feature": "pheno_resnik",
+          "importance": 200.0
+        },
+        {
+          "feature": "esm_delta_00",
+          "importance": 193.0
+        },
+        {
+          "feature": "exon_frac",
+          "importance": 170.0
+        },
+        {
+          "feature": "cadd_missing",
+          "importance": 106.0
+        }
+      ],
+      "esm_share": 0.40281487569344565
+    },
+    "test": {
+      "ndcg@1": 0.8388499151026209,
+      "recall@1": 0.8583569405099151,
+      "ndcg@3": 0.9201355199428775,
+      "recall@3": 0.9643059490084985,
+      "ndcg@10": 0.9331109992690989,
+      "recall@10": 0.9960339943342776,
+      "mrr": 0.9129243183634118,
+      "rank_points": 96.91218130311614,
+      "n_queries": 1765.0,
+      "calib_brier": 0.008578856922335147,
+      "calib_ece": 0.0033718709783723353,
+      "calib_fmax": 0.7377631938747607,
+      "calib_fmax_threshold": 0.48175182481751827
+    },
+    "bootstrap_vs_base": {
+      "ndcg10": {
+        "mean_diff": 0.001268466516854662,
+        "ci95": [
+          -0.002953253949571059,
+          0.0052771242124789435
+        ],
+        "win": 95,
+        "loss": 84,
+        "tie": 1586
+      },
+      "r1": {
+        "mean_diff": 0.0016997167138810198,
+        "ci95": [
+          -0.0084985835694051,
+          0.012464589235127478
+        ],
+        "win": 46,
+        "loss": 43,
+        "tie": 1676
+      },
+      "rp": {
+        "mean_diff": 0.07365439093484419,
+        "ci95": [
+          -0.11898016997167139,
+          0.26062322946175637
+        ],
+        "win": 92,
+        "loss": 83,
+        "tie": 1590
+      }
+    }
+  },
+  "both48": {
+    "esm": "both",
+    "n_components": 48,
+    "n_features": 71,
+    "best_iteration": 70,
+    "seconds": 20.2,
+    "importance": {
+      "top15": [
+        {
+          "feature": "pheno_jaccard",
+          "importance": 484.0
+        },
+        {
+          "feature": "gene_path_count",
+          "importance": 454.0
+        },
+        {
+          "feature": "cadd_norm",
+          "importance": 392.0
+        },
+        {
+          "feature": "loeuf_norm",
+          "importance": 373.0
+        },
+        {
+          "feature": "pheno_bma",
+          "importance": 355.0
+        },
+        {
+          "feature": "gene_hpo_count",
+          "importance": 314.0
+        },
+        {
+          "feature": "am_norm",
+          "importance": 170.0
+        },
+        {
+          "feature": "gene_disease_count",
+          "importance": 167.0
+        },
+        {
+          "feature": "consequence_weight",
+          "importance": 164.0
+        },
+        {
+          "feature": "pheno_resnik",
+          "importance": 132.0
+        },
+        {
+          "feature": "esm_delta_00",
+          "importance": 130.0
+        },
+        {
+          "feature": "pli_norm",
+          "importance": 121.0
+        },
+        {
+          "feature": "pheno_terms_matched",
+          "importance": 116.0
+        },
+        {
+          "feature": "cadd_missing",
+          "importance": 71.0
+        },
+        {
+          "feature": "esm_delta_05",
+          "importance": 65.0
+        }
+      ],
+      "esm_share": 0.21566820276497695
+    },
+    "test": {
+      "ndcg@1": 0.849048215385907,
+      "recall@1": 0.8685552407932011,
+      "ndcg@3": 0.9240291493825051,
+      "recall@3": 0.9637393767705382,
+      "ndcg@10": 0.9373215943866601,
+      "recall@10": 0.996600566572238,
+      "mrr": 0.9182464439086253,
+      "rank_points": 97.04249291784703,
+      "n_queries": 1765.0,
+      "calib_brier": 0.008503510006132553,
+      "calib_ece": 0.003335519829843829,
+      "calib_fmax": 0.7396618985695708,
+      "calib_fmax_threshold": 0.4146341463414634
+    },
+    "bootstrap_vs_base": {
+      "ndcg10": {
+        "mean_diff": 0.005479061634415716,
+        "ci95": [
+          0.0011464625819423287,
+          0.009601261305601943
+        ],
+        "win": 99,
+        "loss": 68,
+        "tie": 1598
+      },
+      "r1": {
+        "mean_diff": 0.01189801699716714,
+        "ci95": [
+          0.0011331444759206798,
+          0.0226628895184136
+        ],
+        "win": 56,
+        "loss": 35,
+        "tie": 1674
+      },
+      "rp": {
+        "mean_diff": 0.20396600566572237,
+        "ci95": [
+          -0.0056657223796034,
+          0.4024079320113294
+        ],
+        "win": 96,
+        "loss": 68,
+        "tie": 1601
+      }
+    }
+  }
+}

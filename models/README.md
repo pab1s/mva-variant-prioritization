@@ -69,6 +69,10 @@ python -m src.prioritization.prioritize --vcf data/interim/full.vep.vcf.gz \
   1 = ClinVar P/LP 1★, 0 = benign (ClinVar B/LB or VKGL LB). VUS excluded.
 - P1 (label leakage via `clinvar_score`) is settled empirically on the novel
   stratum: see `reports/ml_ranking_report.md`.
+- **Experimental ESM-2 embeddings:** variant-level ESM-2 35M delta embeddings
+  and a masked-marginal score were tested on top of the 21-feature schema. They
+  improve LightGBM (+0.0055 NDCG@10) but not CatBoost (+0.0009, CI includes 0);
+  not deployed. See `reports/esm_ranker.md`.
 - **Experimental gene-intrinsic block:** 16 features (gnomAD constraint,
   structure, HPOA inheritance/IC, interactions) are gated behind
   `--include-gene-features` in `train_ranker.py`. They are **not** part of the

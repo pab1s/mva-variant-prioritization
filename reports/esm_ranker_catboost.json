@@ -1,0 +1,335 @@
+{
+  "catboost_base": {
+    "tag": "catboost_base",
+    "backend": "catboost",
+    "esm": "none",
+    "n_components": 0,
+    "n_features": 21,
+    "best_iteration": 387,
+    "seconds": 261.2,
+    "params": {
+      "rounds": 400,
+      "lr": 0.05,
+      "l2": 3.0,
+      "leaves": 63,
+      "seed": 7
+    },
+    "val": {
+      "ndcg@1": 0.7809938298516905,
+      "recall@1": 0.8350033400133601,
+      "ndcg@3": 0.8937150684932754,
+      "recall@3": 0.9378757515030061,
+      "ndcg@10": 0.9128734108883617,
+      "recall@10": 0.9853039412157648,
+      "mrr": 0.8911686008194915,
+      "rank_points": 95.02338009352037,
+      "n_queries": 1497.0,
+      "calib_brier": 0.009411921759457478,
+      "calib_ece": 1.1729035962308026e-18,
+      "calib_fmax": 0.7295300029559563,
+      "calib_fmax_threshold": 0.3477133068085317
+    },
+    "test": {
+      "ndcg@1": 0.8650404501652447,
+      "recall@1": 0.884985835694051,
+      "ndcg@3": 0.9355834296290569,
+      "recall@3": 0.9716713881019831,
+      "ndcg@10": 0.946027650780608,
+      "recall@10": 0.9977337110481587,
+      "mrr": 0.9295326512440328,
+      "rank_points": 97.54674220963173,
+      "n_queries": 1765.0,
+      "calib_brier": 0.007796697885942482,
+      "calib_ece": 0.0041728194698572385,
+      "calib_fmax": 0.7679369250985545,
+      "calib_fmax_threshold": 0.43243243243243246
+    }
+  },
+  "catboost_score": {
+    "tag": "catboost_score",
+    "backend": "catboost",
+    "esm": "score",
+    "n_components": 0,
+    "n_features": 23,
+    "best_iteration": 376,
+    "seconds": 259.9,
+    "importance": {
+      "top15": [
+        {
+          "feature": "pheno_bma",
+          "importance": 18.409971515152197
+        },
+        {
+          "feature": "pheno_jaccard",
+          "importance": 15.344544733177532
+        },
+        {
+          "feature": "cadd_norm",
+          "importance": 12.294147893526292
+        },
+        {
+          "feature": "consequence_weight",
+          "importance": 10.585434297984742
+        },
+        {
+          "feature": "gene_path_count",
+          "importance": 7.54920697983908
+        },
+        {
+          "feature": "pheno_terms_matched",
+          "importance": 5.3197513610926075
+        },
+        {
+          "feature": "gene_hpo_count",
+          "importance": 5.170648912059208
+        },
+        {
+          "feature": "am_norm",
+          "importance": 4.341910868730373
+        },
+        {
+          "feature": "pheno_resnik",
+          "importance": 4.1654541574581
+        },
+        {
+          "feature": "loeuf_norm",
+          "importance": 3.7185779119441036
+        },
+        {
+          "feature": "gene_disease_count",
+          "importance": 3.091925807545641
+        },
+        {
+          "feature": "cadd_missing",
+          "importance": 2.7173201601098653
+        },
+        {
+          "feature": "pli_norm",
+          "importance": 2.6145635331658403
+        },
+        {
+          "feature": "exon_frac",
+          "importance": 1.794275978148799
+        },
+        {
+          "feature": "esm_score",
+          "importance": 1.0651205002585746
+        }
+      ],
+      "esm_share": 0.011461726568240007
+    },
+    "params": {
+      "rounds": 400,
+      "lr": 0.05,
+      "l2": 3.0,
+      "leaves": 63,
+      "seed": 7
+    },
+    "val": {
+      "ndcg@1": 0.7894194458789221,
+      "recall@1": 0.843687374749499,
+      "ndcg@3": 0.8986815210053813,
+      "recall@3": 0.9418837675350702,
+      "ndcg@10": 0.9167643406597838,
+      "recall@10": 0.9859719438877755,
+      "mrr": 0.8963023839570411,
+      "rank_points": 95.21710086840348,
+      "n_queries": 1497.0,
+      "calib_brier": 0.009343840113232681,
+      "calib_ece": 2.5720908444675477e-19,
+      "calib_fmax": 0.7352096496266514,
+      "calib_fmax_threshold": 0.39552238805970147
+    },
+    "test": {
+      "ndcg@1": 0.8678733113550463,
+      "recall@1": 0.8878186968838527,
+      "ndcg@3": 0.9368835433341125,
+      "recall@3": 0.9722379603399434,
+      "ndcg@10": 0.9469386875321286,
+      "recall@10": 0.9971671388101983,
+      "mrr": 0.9309087118375153,
+      "rank_points": 97.56373937677054,
+      "n_queries": 1765.0,
+      "calib_brier": 0.007871744512192974,
+      "calib_ece": 0.004309962707887625,
+      "calib_fmax": 0.7475702653007616,
+      "calib_fmax_threshold": 0.4
+    },
+    "bootstrap": {
+      "ndcg10": {
+        "mean_diff": 0.000911036751520511,
+        "ci95": [
+          -0.0013692232094572473,
+          0.003411485212621117
+        ],
+        "win": 36,
+        "loss": 35,
+        "tie": 1694
+      },
+      "r1": {
+        "mean_diff": 0.0028328611898017,
+        "ci95": [
+          -0.0028328611898017,
+          0.0084985835694051
+        ],
+        "win": 15,
+        "loss": 10,
+        "tie": 1740
+      },
+      "rp": {
+        "mean_diff": 0.0169971671388102,
+        "ci95": [
+          -0.0906515580736544,
+          0.12464589235127478
+        ],
+        "win": 34,
+        "loss": 35,
+        "tie": 1696
+      }
+    }
+  },
+  "catboost_both48": {
+    "tag": "catboost_both48",
+    "backend": "catboost",
+    "esm": "both",
+    "n_components": 48,
+    "n_features": 71,
+    "best_iteration": 279,
+    "seconds": 227.0,
+    "importance": {
+      "top15": [
+        {
+          "feature": "pheno_bma",
+          "importance": 20.438850741534566
+        },
+        {
+          "feature": "pheno_jaccard",
+          "importance": 16.699840548777683
+        },
+        {
+          "feature": "cadd_norm",
+          "importance": 11.882598170584249
+        },
+        {
+          "feature": "consequence_weight",
+          "importance": 10.726754144618702
+        },
+        {
+          "feature": "gene_path_count",
+          "importance": 6.5909534349356855
+        },
+        {
+          "feature": "am_norm",
+          "importance": 4.785220325846029
+        },
+        {
+          "feature": "pheno_terms_matched",
+          "importance": 4.363172054449534
+        },
+        {
+          "feature": "pheno_resnik",
+          "importance": 4.217048916674446
+        },
+        {
+          "feature": "loeuf_norm",
+          "importance": 3.341545480246451
+        },
+        {
+          "feature": "gene_disease_count",
+          "importance": 3.319486143404144
+        },
+        {
+          "feature": "gene_hpo_count",
+          "importance": 3.1366986740851996
+        },
+        {
+          "feature": "cadd_missing",
+          "importance": 2.4752763320101057
+        },
+        {
+          "feature": "pli_norm",
+          "importance": 1.280335465774566
+        },
+        {
+          "feature": "esm_delta_00",
+          "importance": 1.1871281921246877
+        },
+        {
+          "feature": "is_splice",
+          "importance": 0.987606932340281
+        }
+      ],
+      "esm_share": 0.042213242927225635
+    },
+    "params": {
+      "rounds": 400,
+      "lr": 0.05,
+      "l2": 3.0,
+      "leaves": 63,
+      "seed": 7
+    },
+    "val": {
+      "ndcg@1": 0.7807354111427831,
+      "recall@1": 0.8350033400133601,
+      "ndcg@3": 0.8921861320636093,
+      "recall@3": 0.9365397461589846,
+      "ndcg@10": 0.9118327252554335,
+      "recall@10": 0.9846359385437542,
+      "mrr": 0.8898797204399739,
+      "rank_points": 94.90313961255845,
+      "n_queries": 1497.0,
+      "calib_brier": 0.009299669923078433,
+      "calib_ece": 2.1346091172560585e-18,
+      "calib_fmax": 0.7302231237322515,
+      "calib_fmax_threshold": 0.35443037974683544
+    },
+    "test": {
+      "ndcg@1": 0.8678733113550463,
+      "recall@1": 0.8878186968838527,
+      "ndcg@3": 0.9361194693704162,
+      "recall@3": 0.9705382436260623,
+      "ndcg@10": 0.9465808969848283,
+      "recall@10": 0.9960339943342776,
+      "mrr": 0.9307992267411531,
+      "rank_points": 97.46175637393767,
+      "n_queries": 1765.0,
+      "calib_brier": 0.007877989768592717,
+      "calib_ece": 0.004597133143588295,
+      "calib_fmax": 0.764109232769831,
+      "calib_fmax_threshold": 0.3684210526315789
+    },
+    "bootstrap_vs": "catboost_base",
+    "bootstrap": {
+      "ndcg10": {
+        "mean_diff": 0.0005532462042202188,
+        "ci95": [
+          -0.0028091250132841195,
+          0.004221903019622898
+        ],
+        "win": 62,
+        "loss": 65,
+        "tie": 1638
+      },
+      "r1": {
+        "mean_diff": 0.0028328611898017,
+        "ci95": [
+          -0.0056657223796034,
+          0.0113314447592068
+        ],
+        "win": 34,
+        "loss": 29,
+        "tie": 1702
+      },
+      "rp": {
+        "mean_diff": -0.08498583569405099,
+        "ci95": [
+          -0.2776203966005666,
+          0.09631728045325778
+        ],
+        "win": 58,
+        "loss": 62,
+        "tie": 1645
+      }
+    }
+  }
+}

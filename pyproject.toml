@@ -16,6 +16,10 @@ dependencies = [
     "tqdm>=4.65",
 ]
 
+[project.optional-dependencies]
+# ESM-2 variant embeddings (src/ml/esm_features.py + train_esm_ranker.py)
+embeddings = ["torch>=2.0", "transformers>=4.40"]
+
 [project.scripts]
 prioritize = "src.prioritization.prioritize:main"
 
