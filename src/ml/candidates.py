@@ -46,8 +46,16 @@ def is_pathogenic_clinsig(clinsig: str) -> bool:
 def is_candidate(af: float | None, cons: str, clinsig: str, filt: str,
                  is_primary: bool, gene: str | None,
                  pheno_gate: dict[str, float] | set[str],
-                 panel: set[str], af_thresh: float = DEFAULT_AF_THRESH) -> bool:
-    """Scalar per-variant rule (inference path)."""
+                 panel: set[str], af_thresh: float = DEFAULT_AF_THRESH,
+                 af_available: bool = True) -> bool:
+    """Scalar per-variant rule (inference path).
+
+    With `af_available=False` (deferred gnomAD pass) the phenotype-gate arm is
+    DISABLED: without a population-AF source every variant reads as "rare",
+    and gate-gene variants of low consequence would flood the candidate pool
+    (observed: ANXA5 intronic variants topped the MVA ranked list once AF was
+    deferred). The protein-altering and ClinVar arms stay unconditional.
+    """
     if not is_primary:
         return False
     rare = af is None or af != af or af < af_thresh  # NaN -> unknown -> rare
@@ -58,21 +66,23 @@ def is_candidate(af: float | None, cons: str, clinsig: str, filt: str,
         return True
     if clin_path:
         return True
-    if rare and gene and (gene in pheno_gate or gene in panel):
+    if rare and af_available and gene and (gene in pheno_gate or gene in panel):
         return True
     return False
 
 
 def retrieval_components(df: pd.DataFrame, pheno_gate: set[str], panel: set[str],
-                         af_thresh: float = DEFAULT_AF_THRESH) -> dict[str, pd.Series]:
+                         af_thresh: float = DEFAULT_AF_THRESH,
+                         af_available: bool = True) -> dict[str, pd.Series]:
     """Per-arm retrieval signals (used to attribute failures to reasons)."""
     af = pd.to_numeric(df["gnomad_af"], errors="coerce")
     return {
         "rare": af.isna() | (af < af_thresh),
+        "cw": df["Consequence"].fillna("").map(consequence_weight),
         "cw_ok": df["Consequence"].fillna("").map(consequence_weight) >= 0.6,
         "clin_path": df["CLIN_SIG"].fillna("").map(is_pathogenic_clinsig),
-        "gate_ok": df["SYMBOL"].fillna("").isin(pheno_gate)
-                   | df["SYMBOL"].fillna("").isin(panel),
+        "gate_ok": (df["SYMBOL"].fillna("").isin(pheno_gate)
+                    | df["SYMBOL"].fillna("").isin(panel)) & (af_available is True),
     }
 
 

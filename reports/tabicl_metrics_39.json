@@ -1,0 +1,257 @@
+{
+  "model": "tabicl",
+  "version": "tabicl-v2",
+  "target": "grade3",
+  "features": [
+    "rare_score",
+    "consequence_weight",
+    "is_lof",
+    "is_missense",
+    "is_splice",
+    "impact_ord",
+    "cadd_norm",
+    "cadd_missing",
+    "clinvar_score",
+    "canonical",
+    "mane",
+    "am_norm",
+    "loeuf_norm",
+    "pli_norm",
+    "gene_path_count",
+    "exon_frac",
+    "pheno_resnik",
+    "pheno_bma",
+    "pheno_jaccard",
+    "pheno_terms_matched",
+    "pheno_excluded_overlap",
+    "gene_hpo_count",
+    "gene_disease_count",
+    "gene_oe_mis",
+    "gene_mis_z",
+    "gene_syn_z",
+    "gene_oe_lof",
+    "gene_cds_length_log",
+    "gene_num_exons_log",
+    "gene_segdup_prop",
+    "gene_lcr_prop",
+    "gene_inheritance_ar",
+    "gene_inheritance_ad",
+    "gene_inheritance_xl",
+    "gene_hpo_ic_mean",
+    "gene_hpo_ic_max",
+    "is_lof_x_loeuf",
+    "is_missense_x_mis_z",
+    "cadd_x_loeuf"
+  ],
+  "n_train_rows": 39974,
+  "n_train_queries": 565,
+  "n_test_rows": 86412,
+  "n_test_queries": 1765,
+  "n_estimators": "2",
+  "fit_mode": "kv_cache=True",
+  "fit_seconds": 16.1,
+  "predict_seconds": 30.7,
+  "metrics": {
+    "ndcg@1": 0.696512,
+    "recall@1": 0.715581,
+    "ndcg@3": 0.829572,
+    "recall@3": 0.911615,
+    "ndcg@10": 0.863294,
+    "recall@10": 0.996601,
+    "mrr": 0.820375,
+    "rank_points": 93.444759,
+    "n_queries": 1765.0,
+    "calib_brier": 0.011217,
+    "calib_ece": 0.008506,
+    "calib_fmax": 0.628408,
+    "calib_fmax_threshold": 0.209351
+  },
+  "reference": {
+    "lightgbm_deployed_no_excluded_no_clinvar": {
+      "ndcg@10": 0.935715,
+      "recall@1": 0.866856,
+      "recall@10": 0.996034,
+      "rank_points": 96.968839
+    },
+    "lightgbm_prev_primary_with_excluded": {
+      "ndcg@10": 0.938081,
+      "recall@1": 0.871388,
+      "recall@10": 0.997167,
+      "rank_points": 97.09915
+    },
+    "lightgbm_no_excluded_with_clinvar": {
+      "ndcg@10": 0.933182,
+      "recall@1": 0.860057,
+      "recall@10": 0.996034,
+      "rank_points": 96.883853
+    }
+  },
+  "gpu": "NVIDIA GeForce RTX 2050",
+  "peak_vram_mb": 3164.7,
+  "candidate_ranking": {
+    "path": "/tmp/opencode/tabicl_v2_39feat_40k_2est_full/ranked_candidates.csv",
+    "n_candidates": 79797,
+    "mva": [
+      {
+        "RANK": 2,
+        "SYMBOL": "ANXA5",
+        "CHROM": "4",
+        "POS": 121669728,
+        "REF": "T",
+        "ALT": "TA",
+        "score": 0.14382784068584442
+      },
+      {
+        "RANK": 102,
+        "SYMBOL": "MAP2K3",
+        "CHROM": "17",
+        "POS": 21300880,
+        "REF": "C",
+        "ALT": "T",
+        "score": 0.01901848241686821
+      },
+      {
+        "RANK": 18101,
+        "SYMBOL": "BUB1B",
+        "CHROM": "15",
+        "POS": 40220612,
+        "REF": "T",
+        "ALT": "G",
+        "score": 0.0009735433850437403
+      },
+      {
+        "RANK": 32587,
+        "SYMBOL": "BUB1B",
+        "CHROM": "15",
+        "POS": 40209701,
+        "REF": "T",
+        "ALT": "G",
+        "score": 0.00042794994078576565
+      }
+    ]
+  },
+  "shap": {
+    "global_top": [
+      {
+        "feature": "pheno_resnik",
+        "mean_abs_shap": 0.06706754419842202,
+        "causal_mean_abs": 0.1308920578916311,
+        "benign_mean_abs": 0.0032430305052129267,
+        "mean_shap": 0.06684013393170794
+      },
+      {
+        "feature": "pheno_bma",
+        "mean_abs_shap": 0.04155839169107638,
+        "causal_mean_abs": 0.07966875970677291,
+        "benign_mean_abs": 0.0034480236753798485,
+        "mean_shap": 0.040402022212354075
+      },
+      {
+        "feature": "pheno_excluded_overlap",
+        "mean_abs_shap": 0.041552364641328624,
+        "causal_mean_abs": 0.08050735915037675,
+        "benign_mean_abs": 0.002597370132280555,
+        "mean_shap": 0.03948701091818775
+      },
+      {
+        "feature": "pheno_jaccard",
+        "mean_abs_shap": 0.024285380045241958,
+        "causal_mean_abs": 0.04507424780685042,
+        "benign_mean_abs": 0.0034965122836335166,
+        "mean_shap": -0.003891203180190435
+      },
+      {
+        "feature": "gene_hpo_count",
+        "mean_abs_shap": 0.02058619304758116,
+        "causal_mean_abs": 0.039607842215466205,
+        "benign_mean_abs": 0.0015645438796961263,
+        "mean_shap": 0.019438588659225934
+      },
+      {
+        "feature": "gene_path_count",
+        "mean_abs_shap": 0.017294889708774512,
+        "causal_mean_abs": 0.03355175368245303,
+        "benign_mean_abs": 0.001038025735095971,
+        "mean_shap": -0.0031600785585488415
+      },
+      {
+        "feature": "pli_norm",
+        "mean_abs_shap": 0.012496819067969362,
+        "causal_mean_abs": 0.022713936983038575,
+        "benign_mean_abs": 0.002279701152900139,
+        "mean_shap": -0.007555390006881959
+      },
+      {
+        "feature": "is_lof_x_loeuf",
+        "mean_abs_shap": 0.010266200264859054,
+        "causal_mean_abs": 0.019643375138305906,
+        "benign_mean_abs": 0.0008890253914122088,
+        "mean_shap": 0.00853994907949161
+      },
+      {
+        "feature": "cadd_x_loeuf",
+        "mean_abs_shap": 0.009788403413341484,
+        "causal_mean_abs": 0.018268420615398406,
+        "benign_mean_abs": 0.0013083862112845657,
+        "mean_shap": 0.008972333087103209
+      },
+      {
+        "feature": "consequence_weight",
+        "mean_abs_shap": 0.00962828395831631,
+        "causal_mean_abs": 0.018151414203748568,
+        "benign_mean_abs": 0.0011051537128840508,
+        "mean_shap": 0.009186075418333904
+      },
+      {
+        "feature": "gene_mis_z",
+        "mean_abs_shap": 0.009624467380485965,
+        "causal_mean_abs": 0.01800154995087521,
+        "benign_mean_abs": 0.0012473848100967191,
+        "mean_shap": 6.03118721534836e-05
+      },
+      {
+        "feature": "gene_hpo_ic_mean",
+        "mean_abs_shap": 0.008485875695169572,
+        "causal_mean_abs": 0.014760391248758727,
+        "benign_mean_abs": 0.002211360141580422,
+        "mean_shap": 0.0003270701008817566
+      }
+    ],
+    "base_value": 0.008177345618605614,
+    "shap_seconds": 54.3,
+    "local_top": {
+      "BUB1B 15:40209701": {
+        "pheno_resnik": 0.010038861757493578,
+        "pheno_excluded_overlap": 0.007146993069909513,
+        "cadd_missing": 0.005888890445930883,
+        "pheno_bma": 0.005579235551219123,
+        "gene_hpo_count": 0.004791285493411124,
+        "clinvar_score": 0.003904630468847851
+      },
+      "BUB1B 15:40220612": {
+        "pheno_resnik": 0.01088797501567266,
+        "cadd_missing": 0.005367975138748686,
+        "pheno_excluded_overlap": 0.005287011270411313,
+        "pli_norm": 0.0036309908246039413,
+        "gene_hpo_count": 0.003557814224526131,
+        "pheno_bma": 0.0035356418508551237
+      },
+      "ANXA5 4:121669728": {
+        "pheno_bma": 0.0829910235479474,
+        "pheno_resnik": 0.060408973173859216,
+        "pheno_jaccard": 0.03283706775012737,
+        "gene_hpo_ic_mean": 0.026650912982101243,
+        "gene_path_count": 0.02615480520762503,
+        "gene_hpo_count": 0.02460582342852528
+      },
+      "MAP2K3 17:21300880": {
+        "gene_hpo_ic_mean": 0.01362998791349431,
+        "pheno_bma": 0.007645857132350405,
+        "pheno_resnik": 0.006726397046198447,
+        "cadd_norm": 0.005515509517863393,
+        "pheno_jaccard": 0.005306575389113277,
+        "cadd_missing": 0.004726590666299065
+      }
+    }
+  }
+}

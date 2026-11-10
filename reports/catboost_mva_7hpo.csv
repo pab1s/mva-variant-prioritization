@@ -1,0 +1,5 @@
+CHROM,POS,REF,ALT,RANK,SCORE,SYMBOL,is_candidate,ml_score,Consequence,CLIN_SIG
+15,40209701,T,G,1,0.0942028985507246,BUB1B,True,2.928214244863589,stop_gained,Pathogenic/Likely_pathogenic
+15,40220612,T,G,2,0.0942028985507246,BUB1B,True,2.955465144418202,missense_variant,Uncertain_significance
+17,21300880,C,T,8,0.0429638854296388,MAP2K3,True,1.433960435964273,missense_variant,Conflicting_classifications_of_pathogenicity
+4,121669728,T,TA,33260,0.0001511144692104,ANXA5,True,-0.9802939828372316,splice_region_variant&splice_polypyrimidine_tract_variant&intron_variant,

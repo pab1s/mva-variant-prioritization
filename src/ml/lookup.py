@@ -17,33 +17,102 @@ AM_TSV = Path("data/annotations/AlphaMissense_hg38_modified.tsv.gz")
 LOEUF_TSV = Path("data/annotations/loeuf_dataset_grch38.tsv.gz")
 GENE_COUNTS = Path("data/ml/gene_counts.csv.gz")
 
-_LOEUF_CACHE: dict[str, tuple[float, float]] | None = None
+_LOEUF_CACHE: dict[str, tuple[float | None, float | None]] | None = None
+_GENE_CONSTRAINT_CACHE: dict[str, dict[str, float | None]] | None = None
 _PATHCOUNT_CACHE: dict[str, int] | None = None
 
 
-def load_loeuf(path: str | Path = LOEUF_TSV) -> dict[str, tuple[float, float]]:
-    """gene symbol -> (LOEUF, pLI) from MANE/canonical transcript rows."""
-    global _LOEUF_CACHE
-    if _LOEUF_CACHE is not None:
-        return _LOEUF_CACHE
-    out: dict[str, tuple[float, float]] = {}
+def _num(parts: list[str], idx: int) -> float | None:
+    """Parse a gnomAD constraint field; missing/invalid -> None."""
+    if idx < 0 or idx >= len(parts):
+        return None
+    value = parts[idx].strip()
+    if value in ("", "NA", "NaN", "nan", "None", "[]"):
+        return None
+    try:
+        return float(value)
+    except ValueError:
+        return None
+
+
+def load_gene_constraint(
+    path: str | Path = LOEUF_TSV,
+) -> dict[str, dict[str, float | None]]:
+    """Gene symbol -> gnomAD constraint/structure metrics.
+
+    One row per gene, using the MANE Select transcript when available
+    (falling back to the canonical transcript). The values are the raw
+    public metrics; `derive_frame` applies log/clip/neutral imputation.
+
+    Keys: loeuf, pli, oe_lof, oe_mis, mis_z, syn_z, cds_length,
+    num_exons, segdup_prop, lcr_prop.
+    """
+    global _GENE_CONSTRAINT_CACHE
+    if _GENE_CONSTRAINT_CACHE is not None:
+        return _GENE_CONSTRAINT_CACHE
+
+    out: dict[str, dict[str, float | None]] = {}
     with gzip.open(path, "rt") as fh:
         cols = fh.readline().rstrip("\n").lstrip("#").split("\t")
-        i_gene = cols.index("gene")
-        i_mane, i_can = cols.index("mane_select"), cols.index("canonical")
-        i_loeuf, i_pli = cols.index("lof.oe_ci.upper"), cols.index("lof.pLI")
+        idx = {name: i for i, name in enumerate(cols)}
+
+        def gi(name: str) -> int:
+            return idx.get(name, -1)
+
+        i_gene = gi("gene")
+        i_mane = gi("mane_select")
+        i_can = gi("canonical")
+        i_loeuf = gi("lof.oe_ci.upper")
+        i_pli = gi("lof.pLI")
+        i_oe_lof = gi("lof.oe")
+        i_oe_mis = gi("mis.oe")
+        i_mis_z = gi("mis.z_score")
+        i_syn_z = gi("syn.z_score")
+        i_cds = gi("cds_length")
+        i_exons = gi("num_coding_exons")
+        i_segdup = gi("gene_quality_metrics.exome_prop_segdup")
+        i_lcr = gi("gene_quality_metrics.exome_prop_LCR")
+
         for line in fh:
             p = line.rstrip("\n").split("\t")
-            if len(p) <= i_pli:
+            if len(p) <= max(i_gene, i_mane, i_can):
                 continue
-            if p[i_mane].lower() != "true" and p[i_can].lower() != "true":
+            gene = p[i_gene].strip()
+            if not gene:
                 continue
-            try:
-                out[p[i_gene]] = (float(p[i_loeuf]), float(p[i_pli]))
-            except ValueError:
+            is_mane = p[i_mane].strip().lower() == "true"
+            is_canonical = p[i_can].strip().lower() == "true"
+            if not is_mane and not is_canonical:
                 continue
-    _LOEUF_CACHE = out
+            # Prefer MANE Select; a later MANE row may replace a canonical one.
+            if gene in out and not is_mane:
+                continue
+            out[gene] = {
+                "loeuf": _num(p, i_loeuf),
+                "pli": _num(p, i_pli),
+                "oe_lof": _num(p, i_oe_lof),
+                "oe_mis": _num(p, i_oe_mis),
+                "mis_z": _num(p, i_mis_z),
+                "syn_z": _num(p, i_syn_z),
+                "cds_length": _num(p, i_cds),
+                "num_exons": _num(p, i_exons),
+                "segdup_prop": _num(p, i_segdup),
+                "lcr_prop": _num(p, i_lcr),
+            }
+    _GENE_CONSTRAINT_CACHE = out
     return out
+
+
+def load_loeuf(
+    path: str | Path = LOEUF_TSV,
+) -> dict[str, tuple[float | None, float | None]]:
+    """gene symbol -> (LOEUF, pLI) from the shared constraint table."""
+    global _LOEUF_CACHE
+    if _LOEUF_CACHE is None:
+        gc = load_gene_constraint(path)
+        _LOEUF_CACHE = {g: (v.get("loeuf"), v.get("pli"))
+                        for g, v in gc.items()}
+    return _LOEUF_CACHE
 
 
 def load_gene_path_counts(path: str | Path = GENE_COUNTS) -> dict[str, int]:
@@ -121,17 +190,54 @@ def cadd_lookup(variants: list[tuple[str, int, str, str]]) -> dict[str, float]:
     return out
 
 
-def load_af(vcf_path: str | Path) -> dict[str, float]:
-    """gnomAD AF per variant key from a side-file annotated with --af_gnomade/g.
+def load_af_tsv(path: str | Path) -> dict[str, float]:
+    """Variant key -> max population AF from a CHROM/POS/REF/ALT/AF TSV."""
+    import csv as _csv
+    import gzip as _gzip
 
-    Reads the CSQ gnomADe_AF / gnomADg_AF columns (fallback AF) and keeps the
-    max across transcripts. Returns {} when the file is absent (AF is then
-    unknown -> treated as rare, consistently at train and serve time).
+    p = Path(path)
+    if not p.exists():
+        return {}
+    opener = _gzip.open if str(p).endswith(".gz") else open
+    out: dict[str, float] = {}
+    with opener(p, "rt", newline="") as fh:
+        sample = fh.readline()
+        fh.seek(0)
+        delim = "\t" if "\t" in sample else ","
+        reader = _csv.DictReader(fh, delimiter=delim)
+        cols = {c.lower(): c for c in (reader.fieldnames or [])}
+        need = ("chrom", "pos", "ref", "alt", "af")
+        if not all(c in cols for c in need):
+            raise RuntimeError(f"AF TSV {p} missing columns {need}")
+        for row in reader:
+            value = row[cols["af"]].strip()
+            if not value:
+                continue
+            try:
+                af = float(value)
+            except ValueError:
+                continue
+            chrom = str(row[cols["chrom"]]).removeprefix("chr")
+            out[vkey(chrom, int(float(row[cols["pos"]])),
+                     row[cols["ref"]], row[cols["alt"]])] = af
+    return out
+
+
+def load_af(vcf_path: str | Path) -> dict[str, float]:
+    """gnomAD AF per variant key from a VEP side-file or an AF TSV.
+
+    - `.tsv/.tsv.gz/.csv/.csv.gz` -> direct AF table (fast cache lookup).
+    - VCF -> read CSQ gnomADe_AF / gnomADg_AF / AF columns (VEP side-file).
+    Returns {} when the file is absent (AF unknown -> treated as rare,
+    consistently at train and serve time).
     """
     import gzip as _gzip
     p = Path(vcf_path)
     if not p.exists():
         return {}
+    if p.suffix.lower() in (".tsv", ".csv") or \
+            p.name.lower().endswith((".tsv.gz", ".csv.gz")):
+        return load_af_tsv(p)
     opener = _gzip.open if str(p).endswith(".gz") else open
     af: dict[str, float] = {}
     hdr: list[str] | None = None

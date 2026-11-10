@@ -318,6 +318,11 @@ def prioritize(vcf_annotated: str, hpo_terms: list[str], config: dict | None = N
         raise ValueError(f"No variants parsed from {vcf_annotated}")
 
     df = pd.DataFrame(rows)
+    # Fast-structural CSQ leaves CADD_PHRED as "" and gnomad_af absent — keep
+    # both columns numeric-nullable or the later df.at[...] float assignments
+    # hit an all-string dtype (pandas3 refuses floats on a str column).
+    for _col in ("CADD_PHRED", "gnomad_af"):
+        df[_col] = pd.to_numeric(df[_col], errors="coerce") if _col in df.columns else _col
     print(f"[prioritize] Scored {len(df)} variant alleles (expanded from multiallelic)")
 
     # Inheritance-aware pair bonus (continuous, modest). For recessive
@@ -348,9 +353,13 @@ def prioritize(vcf_annotated: str, hpo_terms: list[str], config: dict | None = N
     # engine above); the disease panel is an optional domain prior on top and
     # is never a model feature (ranker stays disease-agnostic).
     from src.ml.candidates import is_candidate as _is_candidate
+    from src.ml.lookup import load_af, cadd_lookup, vkey as _vkey
+    from src.ml.candidates import is_pathogenic_clinsig as _clin_path
+    af_map = load_af(Path(config.get("af_vcf", "data/interim/af.tsv.gz")))
     df["is_candidate"] = [
         _is_candidate(af, cons, clin, filt, is_primary_contig(chrom), gene,
-                      gate, set(panel_genes), af_thresh)
+                      gate, set(panel_genes), af_thresh,
+                      af_available=bool(af_map))
         for af, cons, clin, filt, chrom, gene in zip(
             df["gnomad_af"], df["Consequence"], df["CLIN_SIG"].fillna(""),
             df["FILTER"], df["CHROM"], df["SYMBOL"])
@@ -364,9 +373,6 @@ def prioritize(vcf_annotated: str, hpo_terms: list[str], config: dict | None = N
     # the candidate set (ClinVar P/LP is exempt from the rarity rule, exactly
     # as in src/ml/candidates.py); if the AF side-file is absent every variant
     # is treated as rare — identical to training when train.af is missing.
-    from src.ml.lookup import load_af, cadd_lookup, vkey as _vkey
-    from src.ml.candidates import is_pathogenic_clinsig as _clin_path
-    af_map = load_af(Path(config.get("af_vcf", "data/interim/full.af.vcf.gz")))
     cand_idx = df.index[df["is_candidate"]]
     if len(cand_idx):
         keys = [_vkey(c, int(p), r, a) for c, p, r, a in
@@ -414,8 +420,10 @@ def prioritize(vcf_annotated: str, hpo_terms: list[str], config: dict | None = N
         import json as _json
         import numpy as _np
         import pickle as _pk
-        from src.ml.rank_features import FEATURES, derive_frame
+        from src.ml.rank_features import (FEATURES, GENE_INTRINSIC_FEATURES,
+                                          derive_frame)
         from src.ml.lookup import (load_loeuf, load_gene_path_counts,
+                                   load_gene_constraint,
                                    am_lookup, vkey as _vkey)
         mp = Path(model_path)
         if not mp.exists():
@@ -425,12 +433,25 @@ def prioritize(vcf_annotated: str, hpo_terms: list[str], config: dict | None = N
         feat_path = mp.parent / "features.json"
         expected = _json.loads(feat_path.read_text()) if feat_path.exists() else FEATURES
         # Ablation models train on a subset of FEATURES (e.g. no clinvar_score);
-        # the subset must keep FEATURES order so column alignment is guaranteed.
-        if not set(expected).issubset(FEATURES) or \
-                expected != [c for c in FEATURES if c in set(expected)]:
+        # the subset must keep schema order so column alignment is guaranteed.
+        all_features = FEATURES + GENE_INTRINSIC_FEATURES
+        if not set(expected).issubset(all_features) or \
+                expected != [c for c in all_features if c in set(expected)]:
             raise RuntimeError(
-                f"Feature mismatch: model trained on {expected}, code has {FEATURES}")
-        booster = lgb.Booster(model_file=str(mp))
+                f"Feature mismatch: model trained on {expected}, code has {all_features}")
+        model_type = "lightgbm"
+        type_path = mp.parent / "model_type.txt"
+        if type_path.exists():
+            model_type = type_path.read_text().strip().lower()
+        if mp.suffix.lower() == ".cbm":
+            model_type = "catboost"
+        if model_type == "catboost":
+            from catboost import CatBoostRanker
+            cat_model = CatBoostRanker().load_model(str(mp))
+            booster = None
+        else:
+            cat_model = None
+            booster = lgb.Booster(model_file=str(mp))
 
         cand = df.loc[cand_idx].copy()
         # phenotype feature block (same GeneHPO engine as training)
@@ -442,16 +463,36 @@ def prioritize(vcf_annotated: str, hpo_terms: list[str], config: dict | None = N
             blk = {g: (pheno_for_gene(g) or PHENO_ZERO) for g in genes}
             for col in PHENO_COLS:
                 cand[col] = [blk.get(g, PHENO_ZERO)[col] for g in cand["SYMBOL"]]
+            intr = {g: gh.gene_intrinsic(g) for g in genes}
+            for col in ("gene_inheritance_ar", "gene_inheritance_ad",
+                        "gene_inheritance_xl", "gene_hpo_ic_mean",
+                        "gene_hpo_ic_max"):
+                cand[col] = [intr.get(g, {}).get(col, 0.0)
+                             for g in cand["SYMBOL"]]
         else:
             for col in PHENO_COLS:
                 cand[col] = 0.0
+            for col in ("gene_inheritance_ar", "gene_inheritance_ad",
+                        "gene_inheritance_xl", "gene_hpo_ic_mean",
+                        "gene_hpo_ic_max"):
+                cand[col] = 0.0
         # gene-level constraint + ClinVar burden (shared lookups w/ training)
         loeuf_map = load_loeuf()
+        gene_constraint = load_gene_constraint()
         path_counts = load_gene_path_counts()
         cand["gene_loeuf"] = cand["SYMBOL"].map(
             lambda g: loeuf_map.get(g, (None, None))[0])
         cand["gene_pli"] = cand["SYMBOL"].map(
             lambda g: loeuf_map.get(g, (None, None))[1])
+        for col, key in (
+            ("gene_oe_mis", "oe_mis"), ("gene_mis_z", "mis_z"),
+            ("gene_syn_z", "syn_z"), ("gene_oe_lof", "oe_lof"),
+            ("gene_cds_length", "cds_length"), ("gene_num_exons", "num_exons"),
+            ("gene_segdup_prop", "segdup_prop"),
+            ("gene_lcr_prop", "lcr_prop"),
+        ):
+            cand[col] = cand["SYMBOL"].map(
+                lambda g, k=key: gene_constraint.get(g, {}).get(k))
         cand["gene_clinvar_path_count"] = (
             cand["SYMBOL"].map(path_counts).fillna(0).astype(int))
         # AlphaMissense for missense candidates (one tabix pass)
@@ -462,8 +503,15 @@ def prioritize(vcf_annotated: str, hpo_terms: list[str], config: dict | None = N
             am.get(_vkey(c, p, r, a), (None, ""))[0]
             for c, p, r, a in cand[["CHROM", "POS", "REF", "ALT"]].itertuples(index=False)]
 
-        X = derive_frame(cand)[expected].to_numpy(dtype=_np.float32)
-        raw = booster.predict(X)
+        X = derive_frame(
+            cand,
+            include_gene_features=any(
+                f in GENE_INTRINSIC_FEATURES for f in expected)
+        )[expected].to_numpy(dtype=_np.float32)
+        if cat_model is not None:
+            raw = _np.asarray(cat_model.predict(X), dtype=_np.float64)
+        else:
+            raw = booster.predict(X)
         calib_path = mp.parent / "calib.pkl"
         if calib_path.exists():
             iso = _pk.loads(calib_path.read_bytes())
@@ -471,6 +519,36 @@ def prioritize(vcf_annotated: str, hpo_terms: list[str], config: dict | None = N
         else:
             print("[prioritize] WARNING: models/calib.pkl missing — raw scores")
             cal = raw
+        # Optional: export TreeSHAP contributions for every candidate. This is
+        # the same TreeSHAP algorithm as shap.TreeExplainer, computed by
+        # LightGBM's pred_contrib (raw-margin space; the bias is the last
+        # column, and sum(contrib) + bias == raw score).
+        shap_out = config.get("shap_out")
+        if shap_out:
+            if cat_model is not None:
+                from catboost import Pool
+                contrib = _np.asarray(cat_model.get_feature_importance(
+                    Pool(X), type="ShapValues"))
+            else:
+                contrib = _np.asarray(booster.predict(X, pred_contrib=True))
+            if contrib.ndim != 2 or contrib.shape[1] != len(expected) + 1:
+                raise RuntimeError(
+                    f"Unexpected SHAP shape {contrib.shape}; expected "
+                    f"({len(cand)}, {len(expected) + 1})")
+            meta_cols = [c for c in (
+                "CHROM", "POS", "REF", "ALT", "SYMBOL", "Consequence",
+                "CLIN_SIG", "GT", "CADD_PHRED", "IMPACT", "EXON",
+            ) if c in cand.columns]
+            meta = cand[meta_cols].reset_index(drop=True)
+            meta["raw_score"] = raw
+            meta["calibrated_score"] = cal
+            shap_df = pd.DataFrame(
+                contrib[:, :len(expected)],
+                columns=[f"shap_{f}" for f in expected])
+            shap_df.insert(0, "shap_bias", contrib[:, -1])
+            pd.concat([meta, shap_df], axis=1).to_csv(shap_out, index=False)
+            print(f"[prioritize] SHAP contributions -> {shap_out} "
+                  f"({len(cand)} candidates x {len(expected)} features)")
         floor = float(cal.min()) * 0.5 if len(cal) else 0.0
         df["heuristic_score"] = df["score"]
         df["score"] = floor
@@ -479,6 +557,16 @@ def prioritize(vcf_annotated: str, hpo_terms: list[str], config: dict | None = N
         df["ml_score"] = df["ml_score"].fillna(-1.0)
         print(f"[prioritize] ML-ranked {len(cand)} candidates with {mp.name} "
               f"(standalone, isotonic-calibrated)")
+        if config.get("candidates_out"):
+            cand_out = cand.copy()
+            cand_out["gnomad_af"] = df.loc[cand_idx, "gnomad_af"].to_numpy()
+            cand_out["ml_score"] = raw
+            cand_out["SCORE"] = cal
+            cand_out["is_candidate"] = True
+            cand_out.to_csv(config["candidates_out"], index=False)
+            print(f"[prioritize] wrote {len(cand_out)} candidates -> "
+                  f"{config['candidates_out']}")
+            return cand_out
     elif model_path:
         print("[prioritize] WARNING: model given but zero candidates — heuristic only")
 
@@ -518,6 +606,10 @@ def main():
     parser.add_argument("--config", default="config/example_config.yaml", help="Pipeline config YAML")
     parser.add_argument("--max-variants", type=int, default=None, help="Limit variants for debugging")
     parser.add_argument("--model", default=None, help="LightGBM ranker model (models/ranker.txt) — local, optional")
+    parser.add_argument("--shap-out", default=None,
+                        help="Optional CSV: TreeSHAP contributions for every candidate (raw-margin space)")
+    parser.add_argument("--candidates-out", default=None,
+                        help="Optional CSV: score only candidates and skip the full ranked list")
     args = parser.parse_args()
 
     # Load HPO
@@ -534,8 +626,17 @@ def main():
         cfg["max_variants"] = args.max_variants
     if args.model:
         cfg["model"] = args.model
+    if args.shap_out:
+        cfg["shap_out"] = args.shap_out
+    if args.candidates_out:
+        cfg["candidates_out"] = args.candidates_out
 
     ranked = prioritize(args.vcf, hpo_terms, config=cfg)
+
+    # Candidate-only mode: the full ranked list is intentionally skipped.
+    if args.candidates_out:
+        print(f"[main] candidates only -> {args.candidates_out}")
+        return
 
     # Write submission
     to_submission_format(ranked, args.output)

@@ -12,7 +12,10 @@ required per row (all optional/defensive, missing -> neutral default):
 
     gnomad_af, Consequence, IMPACT, CADD_PHRED, CLIN_SIG, EXON,
     canonical, mane, am_pathogenicity, gene_loeuf, gene_pli,
-    gene_clinvar_path_count,
+    gene_clinvar_path_count, gene_oe_mis, gene_mis_z, gene_syn_z,
+    gene_oe_lof, gene_cds_length, gene_num_exons, gene_segdup_prop,
+    gene_lcr_prop, gene_inheritance_ar, gene_inheritance_ad,
+    gene_inheritance_xl, gene_hpo_ic_mean, gene_hpo_ic_max,
     pheno_resnik, pheno_bma, pheno_jaccard, pheno_terms_matched,
     pheno_excluded_overlap, gene_hpo_count, gene_disease_count
 
@@ -56,6 +59,29 @@ FEATURES = [
     "gene_disease_count",
 ]
 
+# Experimental gene-intrinsic block (not in the deployed schema).
+# The 2026-11 ablation showed that adding any of these groups degrades the
+# held-out test ranking (see reports/gene_feature_ablation.md). They remain
+# available for reproducible experiments via `include_gene_features=True`.
+GENE_INTRINSIC_FEATURES = [
+    "gene_oe_mis",
+    "gene_mis_z",
+    "gene_syn_z",
+    "gene_oe_lof",
+    "gene_cds_length_log",
+    "gene_num_exons_log",
+    "gene_segdup_prop",
+    "gene_lcr_prop",
+    "gene_inheritance_ar",
+    "gene_inheritance_ad",
+    "gene_inheritance_xl",
+    "gene_hpo_ic_mean",
+    "gene_hpo_ic_max",
+    "is_lof_x_loeuf",
+    "is_missense_x_mis_z",
+    "cadd_x_loeuf",
+]
+
 LOF_CONSEQUENCES = frozenset({
     "stop_gained", "frameshift_variant", "splice_acceptor_variant",
     "splice_donor_variant", "transcript_ablation", "start_lost",
@@ -71,8 +97,22 @@ def _f(x, default: float = 0.0) -> float:
         return default
 
 
-def derive_frame(df: pd.DataFrame) -> pd.DataFrame:
-    """Raw annotation columns -> FEATURES columns (vectorized, defensive)."""
+def _numeric(df: pd.DataFrame, col: str, default: float = 0.0) -> pd.Series:
+    """Column -> numeric Series with a neutral default when absent/NaN."""
+    if col not in df.columns:
+        return pd.Series(default, index=df.index, dtype=float)
+    return pd.to_numeric(df[col], errors="coerce").fillna(default)
+
+
+def derive_frame(df: pd.DataFrame,
+                 include_gene_features: bool = False) -> pd.DataFrame:
+    """Raw annotation columns -> FEATURES columns (vectorized, defensive).
+
+    The deployed schema is `FEATURES` (23 columns). Experimental gene-intrinsic
+    features are appended only when `include_gene_features=True`; they are not
+    part of the deployed model for the reason documented in
+    reports/gene_feature_ablation.md.
+    """
     out = pd.DataFrame(index=df.index)
 
     af = pd.to_numeric(df.get("gnomad_af"), errors="coerce")
@@ -132,7 +172,34 @@ def derive_frame(df: pd.DataFrame) -> pd.DataFrame:
                 "gene_hpo_count", "gene_disease_count"):
         out[col] = pd.to_numeric(df.get(col), errors="coerce").fillna(0.0)
 
-    return out[FEATURES]
+    # ---- gene-level intrinsic features (gnomAD constraint + structure)
+    out["gene_oe_mis"] = _numeric(df, "gene_oe_mis", 0.5)
+    out["gene_mis_z"] = _numeric(df, "gene_mis_z", 0.0).clip(-10.0, 10.0)
+    out["gene_syn_z"] = _numeric(df, "gene_syn_z", 0.0).clip(-10.0, 10.0)
+    out["gene_oe_lof"] = _numeric(df, "gene_oe_lof", 0.5)
+    out["gene_cds_length_log"] = np.log1p(
+        _numeric(df, "gene_cds_length", 0.0).clip(lower=0.0))
+    out["gene_num_exons_log"] = np.log1p(
+        _numeric(df, "gene_num_exons", 0.0).clip(lower=0.0))
+    out["gene_segdup_prop"] = _numeric(
+        df, "gene_segdup_prop", 0.0).clip(0.0, 1.0)
+    out["gene_lcr_prop"] = _numeric(
+        df, "gene_lcr_prop", 0.0).clip(0.0, 1.0)
+
+    # ---- gene-level inheritance and HPO specificity (HPOA)
+    for col in ("gene_inheritance_ar", "gene_inheritance_ad",
+                "gene_inheritance_xl"):
+        out[col] = _numeric(df, col, 0.0).clip(0.0, 1.0)
+    for col in ("gene_hpo_ic_mean", "gene_hpo_ic_max"):
+        out[col] = _numeric(df, col, 0.0).clip(lower=0.0)
+
+    # ---- interactions: variant consequence x gene constraint
+    out["is_lof_x_loeuf"] = out["is_lof"] * out["loeuf_norm"]
+    out["is_missense_x_mis_z"] = out["is_missense"] * out["gene_mis_z"]
+    out["cadd_x_loeuf"] = out["cadd_norm"] * out["loeuf_norm"]
+
+    cols = FEATURES + (GENE_INTRINSIC_FEATURES if include_gene_features else [])
+    return out[cols]
 
 
 def row_to_vector(row) -> list[float]:

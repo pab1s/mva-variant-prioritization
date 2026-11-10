@@ -194,6 +194,23 @@ class GeneHPO:
             ),
         }
 
+    def gene_intrinsic(self, gene: str) -> dict[str, float]:
+        """Gene-intrinsic HPO features available at train and serve time.
+
+        - inheritance flags from HPOA MOI terms (AD/AR/X-linked)
+        - mean/max information content of the gene's HPO terms (specificity)
+        """
+        moi = self.gene_moi.get(gene, set())
+        terms = self.gene_terms.get(gene, set())
+        ics = [self.ontology.ic.get(t, 0.0) for t in terms]
+        return {
+            "gene_inheritance_ar": float("AR" in moi),
+            "gene_inheritance_ad": float("AD" in moi),
+            "gene_inheritance_xl": float(bool({"XL", "XLR", "XLD"} & moi)),
+            "gene_hpo_ic_mean": (sum(ics) / len(ics)) if ics else 0.0,
+            "gene_hpo_ic_max": max(ics) if ics else 0.0,
+        }
+
     def genes_with_similarity(
         self, query_terms: set[str], min_norm_resnik: float = 0.0
     ) -> dict[str, float]:

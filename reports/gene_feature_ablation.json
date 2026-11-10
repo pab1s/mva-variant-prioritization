@@ -1,0 +1,737 @@
+{
+  "baseline": {
+    "features": 21,
+    "metrics": {
+      "ndcg@1": 0.847348498672026,
+      "recall@1": 0.8668555240793201,
+      "ndcg@3": 0.9212823645828028,
+      "recall@3": 0.9614730878186969,
+      "ndcg@10": 0.935715307516994,
+      "recall@10": 0.9960339943342776,
+      "mrr": 0.9164517364127845,
+      "rank_points": 96.96883852691218,
+      "n_queries": 1765.0
+    },
+    "calibration": {
+      "brier": 0.008195517046853123,
+      "ece": 0.004232093246580828,
+      "fmax": 0.7549396972029766,
+      "fmax_threshold": 0.48868778280542985
+    },
+    "stratified": {
+      "n_known_queries": 1318,
+      "recall10_known": 0.9954476479514416,
+      "n_novel_queries": 447,
+      "recall10_novel": 0.9977628635346756
+    }
+  },
+  "configs": {
+    "baseline_21": {
+      "n_features": 21,
+      "features": [
+        "rare_score",
+        "consequence_weight",
+        "is_lof",
+        "is_missense",
+        "is_splice",
+        "impact_ord",
+        "cadd_norm",
+        "cadd_missing",
+        "canonical",
+        "mane",
+        "am_norm",
+        "loeuf_norm",
+        "pli_norm",
+        "gene_path_count",
+        "exon_frac",
+        "pheno_resnik",
+        "pheno_bma",
+        "pheno_jaccard",
+        "pheno_terms_matched",
+        "gene_hpo_count",
+        "gene_disease_count"
+      ],
+      "dropped": [
+        "clinvar_score",
+        "pheno_excluded_overlap",
+        "gene_oe_mis",
+        "gene_mis_z",
+        "gene_syn_z",
+        "gene_oe_lof",
+        "gene_cds_length_log",
+        "gene_num_exons_log",
+        "gene_segdup_prop",
+        "gene_lcr_prop",
+        "gene_inheritance_ar",
+        "gene_inheritance_ad",
+        "gene_inheritance_xl",
+        "gene_hpo_ic_mean",
+        "gene_hpo_ic_max",
+        "is_lof_x_loeuf",
+        "is_missense_x_mis_z",
+        "cadd_x_loeuf"
+      ],
+      "metrics": {
+        "ndcg@1": 0.847348498672026,
+        "recall@1": 0.8668555240793201,
+        "ndcg@3": 0.9212823645828028,
+        "recall@3": 0.9614730878186969,
+        "ndcg@10": 0.935715307516994,
+        "recall@10": 0.9960339943342776,
+        "mrr": 0.9164517364127845,
+        "rank_points": 96.96883852691218,
+        "n_queries": 1765.0
+      },
+      "calibration": {
+        "brier": 0.008195517046853123,
+        "ece": 0.004232093246580828,
+        "fmax": 0.7549396972029766,
+        "fmax_threshold": 0.48868778280542985
+      },
+      "stratified": {
+        "n_known_queries": 1318,
+        "recall10_known": 0.9954476479514416,
+        "n_novel_queries": 447,
+        "recall10_novel": 0.9977628635346756
+      },
+      "bootstrap_vs_baseline": {
+        "ndcg10": {
+          "mean_diff": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "win": 0,
+          "loss": 0,
+          "tie": 1765
+        },
+        "r1": {
+          "mean_diff": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "win": 0,
+          "loss": 0,
+          "tie": 1765
+        },
+        "rp": {
+          "mean_diff": 0.0,
+          "ci95": [
+            0.0,
+            0.0
+          ],
+          "win": 0,
+          "loss": 0,
+          "tie": 1765
+        }
+      }
+    },
+    "constraint": {
+      "n_features": 29,
+      "features": [
+        "rare_score",
+        "consequence_weight",
+        "is_lof",
+        "is_missense",
+        "is_splice",
+        "impact_ord",
+        "cadd_norm",
+        "cadd_missing",
+        "canonical",
+        "mane",
+        "am_norm",
+        "loeuf_norm",
+        "pli_norm",
+        "gene_path_count",
+        "exon_frac",
+        "pheno_resnik",
+        "pheno_bma",
+        "pheno_jaccard",
+        "pheno_terms_matched",
+        "gene_hpo_count",
+        "gene_disease_count",
+        "gene_oe_mis",
+        "gene_mis_z",
+        "gene_syn_z",
+        "gene_oe_lof",
+        "gene_cds_length_log",
+        "gene_num_exons_log",
+        "gene_segdup_prop",
+        "gene_lcr_prop"
+      ],
+      "dropped": [
+        "clinvar_score",
+        "pheno_excluded_overlap",
+        "gene_inheritance_ar",
+        "gene_inheritance_ad",
+        "gene_inheritance_xl",
+        "gene_hpo_ic_mean",
+        "gene_hpo_ic_max",
+        "is_lof_x_loeuf",
+        "is_missense_x_mis_z",
+        "cadd_x_loeuf"
+      ],
+      "metrics": {
+        "ndcg@1": 0.8337507649609778,
+        "recall@1": 0.853257790368272,
+        "ndcg@3": 0.9128274600481499,
+        "recall@3": 0.9552407932011332,
+        "ndcg@10": 0.9296418350399099,
+        "recall@10": 0.996600566572238,
+        "mrr": 0.9080937409301431,
+        "rank_points": 96.64589235127478,
+        "n_queries": 1765.0
+      },
+      "calibration": {
+        "brier": 0.008328991223153814,
+        "ece": 0.0037959156298069583,
+        "fmax": 0.7590673575129532,
+        "fmax_threshold": 0.46153846153846156
+      },
+      "stratified": {
+        "n_known_queries": 1318,
+        "recall10_known": 0.996206373292868,
+        "n_novel_queries": 447,
+        "recall10_novel": 0.9977628635346756
+      },
+      "bootstrap_vs_baseline": {
+        "ndcg10": {
+          "mean_diff": -0.006073472477084248,
+          "ci95": [
+            -0.00977836310041263,
+            -0.002452417789703778
+          ],
+          "win": 59,
+          "loss": 95,
+          "tie": 1611
+        },
+        "r1": {
+          "mean_diff": -0.013597733711048159,
+          "ci95": [
+            -0.0226628895184136,
+            -0.004532577903682719
+          ],
+          "win": 22,
+          "loss": 46,
+          "tie": 1697
+        },
+        "rp": {
+          "mean_diff": -0.32294617563739375,
+          "ci95": [
+            -0.5325779036827195,
+            -0.11898016997167139
+          ],
+          "win": 56,
+          "loss": 95,
+          "tie": 1614
+        }
+      }
+    },
+    "inheritance_hpo": {
+      "n_features": 26,
+      "features": [
+        "rare_score",
+        "consequence_weight",
+        "is_lof",
+        "is_missense",
+        "is_splice",
+        "impact_ord",
+        "cadd_norm",
+        "cadd_missing",
+        "canonical",
+        "mane",
+        "am_norm",
+        "loeuf_norm",
+        "pli_norm",
+        "gene_path_count",
+        "exon_frac",
+        "pheno_resnik",
+        "pheno_bma",
+        "pheno_jaccard",
+        "pheno_terms_matched",
+        "gene_hpo_count",
+        "gene_disease_count",
+        "gene_inheritance_ar",
+        "gene_inheritance_ad",
+        "gene_inheritance_xl",
+        "gene_hpo_ic_mean",
+        "gene_hpo_ic_max"
+      ],
+      "dropped": [
+        "clinvar_score",
+        "pheno_excluded_overlap",
+        "gene_oe_mis",
+        "gene_mis_z",
+        "gene_syn_z",
+        "gene_oe_lof",
+        "gene_cds_length_log",
+        "gene_num_exons_log",
+        "gene_segdup_prop",
+        "gene_lcr_prop",
+        "is_lof_x_loeuf",
+        "is_missense_x_mis_z",
+        "cadd_x_loeuf"
+      ],
+      "metrics": {
+        "ndcg@1": 0.8326176204850572,
+        "recall@1": 0.8521246458923513,
+        "ndcg@3": 0.9134074708211163,
+        "recall@3": 0.9580736543909348,
+        "ndcg@10": 0.9295989021993424,
+        "recall@10": 0.996600566572238,
+        "mrr": 0.908102741078858,
+        "rank_points": 96.71954674220963,
+        "n_queries": 1765.0
+      },
+      "calibration": {
+        "brier": 0.008273167634231735,
+        "ece": 0.004075149236221041,
+        "fmax": 0.7614957049014653,
+        "fmax_threshold": 0.3793103448275862
+      },
+      "stratified": {
+        "n_known_queries": 1318,
+        "recall10_known": 0.996206373292868,
+        "n_novel_queries": 447,
+        "recall10_novel": 0.9977628635346756
+      },
+      "bootstrap_vs_baseline": {
+        "ndcg10": {
+          "mean_diff": -0.006116405317651773,
+          "ci95": [
+            -0.010186894699263505,
+            -0.0020772628711660177
+          ],
+          "win": 63,
+          "loss": 101,
+          "tie": 1601
+        },
+        "r1": {
+          "mean_diff": -0.014730878186968839,
+          "ci95": [
+            -0.024929178470254956,
+            -0.0050991501416430595
+          ],
+          "win": 27,
+          "loss": 53,
+          "tie": 1685
+        },
+        "rp": {
+          "mean_diff": -0.24929178470254956,
+          "ci95": [
+            -0.4475920679886686,
+            -0.06232294617563739
+          ],
+          "win": 61,
+          "loss": 100,
+          "tie": 1604
+        }
+      }
+    },
+    "interactions": {
+      "n_features": 24,
+      "features": [
+        "rare_score",
+        "consequence_weight",
+        "is_lof",
+        "is_missense",
+        "is_splice",
+        "impact_ord",
+        "cadd_norm",
+        "cadd_missing",
+        "canonical",
+        "mane",
+        "am_norm",
+        "loeuf_norm",
+        "pli_norm",
+        "gene_path_count",
+        "exon_frac",
+        "pheno_resnik",
+        "pheno_bma",
+        "pheno_jaccard",
+        "pheno_terms_matched",
+        "gene_hpo_count",
+        "gene_disease_count",
+        "is_lof_x_loeuf",
+        "is_missense_x_mis_z",
+        "cadd_x_loeuf"
+      ],
+      "dropped": [
+        "clinvar_score",
+        "pheno_excluded_overlap",
+        "gene_oe_mis",
+        "gene_mis_z",
+        "gene_syn_z",
+        "gene_oe_lof",
+        "gene_cds_length_log",
+        "gene_num_exons_log",
+        "gene_segdup_prop",
+        "gene_lcr_prop",
+        "gene_inheritance_ar",
+        "gene_inheritance_ad",
+        "gene_inheritance_xl",
+        "gene_hpo_ic_mean",
+        "gene_hpo_ic_max"
+      ],
+      "metrics": {
+        "ndcg@1": 0.8343173371989382,
+        "recall@1": 0.8538243626062323,
+        "ndcg@3": 0.9095748456389775,
+        "recall@3": 0.9501416430594901,
+        "ndcg@10": 0.9280901501111953,
+        "recall@10": 0.9954674220963173,
+        "mrr": 0.9067775981077931,
+        "rank_points": 96.43626062322946,
+        "n_queries": 1765.0
+      },
+      "calibration": {
+        "brier": 0.008231014792289423,
+        "ece": 0.004058106839237953,
+        "fmax": 0.758496395468589,
+        "fmax_threshold": 0.4335664335664336
+      },
+      "stratified": {
+        "n_known_queries": 1318,
+        "recall10_known": 0.9954476479514416,
+        "n_novel_queries": 447,
+        "recall10_novel": 0.9955257270693513
+      },
+      "bootstrap_vs_baseline": {
+        "ndcg10": {
+          "mean_diff": -0.0076251574057988126,
+          "ci95": [
+            -0.011290463086632146,
+            -0.004085802559426012
+          ],
+          "win": 45,
+          "loss": 106,
+          "tie": 1614
+        },
+        "r1": {
+          "mean_diff": -0.013031161473087818,
+          "ci95": [
+            -0.0226628895184136,
+            -0.004532577903682719
+          ],
+          "win": 21,
+          "loss": 44,
+          "tie": 1700
+        },
+        "rp": {
+          "mean_diff": -0.5325779036827195,
+          "ci95": [
+            -0.7365439093484419,
+            -0.3342776203966006
+          ],
+          "win": 44,
+          "loss": 104,
+          "tie": 1617
+        }
+      }
+    },
+    "constraint_interactions": {
+      "n_features": 32,
+      "features": [
+        "rare_score",
+        "consequence_weight",
+        "is_lof",
+        "is_missense",
+        "is_splice",
+        "impact_ord",
+        "cadd_norm",
+        "cadd_missing",
+        "canonical",
+        "mane",
+        "am_norm",
+        "loeuf_norm",
+        "pli_norm",
+        "gene_path_count",
+        "exon_frac",
+        "pheno_resnik",
+        "pheno_bma",
+        "pheno_jaccard",
+        "pheno_terms_matched",
+        "gene_hpo_count",
+        "gene_disease_count",
+        "gene_oe_mis",
+        "gene_mis_z",
+        "gene_syn_z",
+        "gene_oe_lof",
+        "gene_cds_length_log",
+        "gene_num_exons_log",
+        "gene_segdup_prop",
+        "gene_lcr_prop",
+        "is_lof_x_loeuf",
+        "is_missense_x_mis_z",
+        "cadd_x_loeuf"
+      ],
+      "dropped": [
+        "clinvar_score",
+        "pheno_excluded_overlap",
+        "gene_inheritance_ar",
+        "gene_inheritance_ad",
+        "gene_inheritance_xl",
+        "gene_hpo_ic_mean",
+        "gene_hpo_ic_max"
+      ],
+      "metrics": {
+        "ndcg@1": 0.8303513315332157,
+        "recall@1": 0.8498583569405099,
+        "ndcg@3": 0.9119016004063824,
+        "recall@3": 0.9558073654390935,
+        "ndcg@10": 0.9285192945675572,
+        "recall@10": 0.996600566572238,
+        "mrr": 0.9064800701344611,
+        "rank_points": 96.65155807365439,
+        "n_queries": 1765.0
+      },
+      "calibration": {
+        "brier": 0.008367625203421571,
+        "ece": 0.00395742040947866,
+        "fmax": 0.7558022199798183,
+        "fmax_threshold": 0.45454545454545453
+      },
+      "stratified": {
+        "n_known_queries": 1318,
+        "recall10_known": 0.996206373292868,
+        "n_novel_queries": 447,
+        "recall10_novel": 0.9977628635346756
+      },
+      "bootstrap_vs_baseline": {
+        "ndcg10": {
+          "mean_diff": -0.007196012949437064,
+          "ci95": [
+            -0.011018312057871986,
+            -0.003442997833045898
+          ],
+          "win": 59,
+          "loss": 95,
+          "tie": 1611
+        },
+        "r1": {
+          "mean_diff": -0.0169971671388102,
+          "ci95": [
+            -0.026628895184135977,
+            -0.00793201133144476
+          ],
+          "win": 22,
+          "loss": 52,
+          "tie": 1691
+        },
+        "rp": {
+          "mean_diff": -0.31728045325779036,
+          "ci95": [
+            -0.509915014164306,
+            -0.13031161473087818
+          ],
+          "win": 56,
+          "loss": 95,
+          "tie": 1614
+        }
+      }
+    },
+    "inheritance_interactions": {
+      "n_features": 29,
+      "features": [
+        "rare_score",
+        "consequence_weight",
+        "is_lof",
+        "is_missense",
+        "is_splice",
+        "impact_ord",
+        "cadd_norm",
+        "cadd_missing",
+        "canonical",
+        "mane",
+        "am_norm",
+        "loeuf_norm",
+        "pli_norm",
+        "gene_path_count",
+        "exon_frac",
+        "pheno_resnik",
+        "pheno_bma",
+        "pheno_jaccard",
+        "pheno_terms_matched",
+        "gene_hpo_count",
+        "gene_disease_count",
+        "gene_inheritance_ar",
+        "gene_inheritance_ad",
+        "gene_inheritance_xl",
+        "gene_hpo_ic_mean",
+        "gene_hpo_ic_max",
+        "is_lof_x_loeuf",
+        "is_missense_x_mis_z",
+        "cadd_x_loeuf"
+      ],
+      "dropped": [
+        "clinvar_score",
+        "pheno_excluded_overlap",
+        "gene_oe_mis",
+        "gene_mis_z",
+        "gene_syn_z",
+        "gene_oe_lof",
+        "gene_cds_length_log",
+        "gene_num_exons_log",
+        "gene_segdup_prop",
+        "gene_lcr_prop"
+      ],
+      "metrics": {
+        "ndcg@1": 0.8317036560698926,
+        "recall@1": 0.8509915014164305,
+        "ndcg@3": 0.911810617278146,
+        "recall@3": 0.9569405099150141,
+        "ndcg@10": 0.9282122919197722,
+        "recall@10": 0.9960339943342776,
+        "mrr": 0.9064949612081339,
+        "rank_points": 96.56657223796034,
+        "n_queries": 1765.0
+      },
+      "calibration": {
+        "brier": 0.008000408771274286,
+        "ece": 0.004317501539565836,
+        "fmax": 0.7638085218306155,
+        "fmax_threshold": 0.3567518961052751
+      },
+      "stratified": {
+        "n_known_queries": 1318,
+        "recall10_known": 0.996206373292868,
+        "n_novel_queries": 447,
+        "recall10_novel": 0.9955257270693513
+      },
+      "bootstrap_vs_baseline": {
+        "ndcg10": {
+          "mean_diff": -0.007503015597221934,
+          "ci95": [
+            -0.012062573941965653,
+            -0.0032508795493176846
+          ],
+          "win": 70,
+          "loss": 113,
+          "tie": 1582
+        },
+        "r1": {
+          "mean_diff": -0.01586402266288952,
+          "ci95": [
+            -0.026628895184135977,
+            -0.0050991501416430595
+          ],
+          "win": 33,
+          "loss": 61,
+          "tie": 1671
+        },
+        "rp": {
+          "mean_diff": -0.40226628895184136,
+          "ci95": [
+            -0.6402266288951841,
+            -0.17549575070821735
+          ],
+          "win": 68,
+          "loss": 111,
+          "tie": 1586
+        }
+      }
+    },
+    "all": {
+      "n_features": 37,
+      "features": [
+        "rare_score",
+        "consequence_weight",
+        "is_lof",
+        "is_missense",
+        "is_splice",
+        "impact_ord",
+        "cadd_norm",
+        "cadd_missing",
+        "canonical",
+        "mane",
+        "am_norm",
+        "loeuf_norm",
+        "pli_norm",
+        "gene_path_count",
+        "exon_frac",
+        "pheno_resnik",
+        "pheno_bma",
+        "pheno_jaccard",
+        "pheno_terms_matched",
+        "gene_hpo_count",
+        "gene_disease_count",
+        "gene_oe_mis",
+        "gene_mis_z",
+        "gene_syn_z",
+        "gene_oe_lof",
+        "gene_cds_length_log",
+        "gene_num_exons_log",
+        "gene_segdup_prop",
+        "gene_lcr_prop",
+        "gene_inheritance_ar",
+        "gene_inheritance_ad",
+        "gene_inheritance_xl",
+        "gene_hpo_ic_mean",
+        "gene_hpo_ic_max",
+        "is_lof_x_loeuf",
+        "is_missense_x_mis_z",
+        "cadd_x_loeuf"
+      ],
+      "dropped": [
+        "clinvar_score",
+        "pheno_excluded_overlap"
+      ],
+      "metrics": {
+        "ndcg@1": 0.8161870255842073,
+        "recall@1": 0.8356940509915014,
+        "ndcg@3": 0.9030437446170987,
+        "recall@3": 0.9507082152974504,
+        "ndcg@10": 0.9215112100752998,
+        "recall@10": 0.996600566572238,
+        "mrr": 0.8973773857809314,
+        "rank_points": 96.23796033994334,
+        "n_queries": 1765.0
+      },
+      "calibration": {
+        "brier": 0.00880753089405175,
+        "ece": 0.003990419005875835,
+        "fmax": 0.738933601609658,
+        "fmax_threshold": 0.36486486486486486
+      },
+      "stratified": {
+        "n_known_queries": 1318,
+        "recall10_known": 0.996206373292868,
+        "n_novel_queries": 447,
+        "recall10_novel": 0.9977628635346756
+      },
+      "bootstrap_vs_baseline": {
+        "ndcg10": {
+          "mean_diff": -0.014204097441694404,
+          "ci95": [
+            -0.018929425556386548,
+            -0.009622783735518007
+          ],
+          "win": 56,
+          "loss": 151,
+          "tie": 1558
+        },
+        "r1": {
+          "mean_diff": -0.031161473087818695,
+          "ci95": [
+            -0.042492917847025496,
+            -0.019830028328611898
+          ],
+          "win": 26,
+          "loss": 81,
+          "tie": 1658
+        },
+        "rp": {
+          "mean_diff": -0.7308781869688386,
+          "ci95": [
+            -0.9801699716713881,
+            -0.4984419263456111
+          ],
+          "win": 54,
+          "loss": 150,
+          "tie": 1561
+        }
+      }
+    }
+  }
+}

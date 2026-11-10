@@ -106,6 +106,34 @@ def main() -> None:
 
     report: dict = {"split": a.split, "n_rows": len(df),
                     "queries": int(df.query_id.nunique())}
+
+    cat_dir = Path("models/ml_catboost")
+    deployed_dir = Path("models/ml_no_excluded")
+    if (cat_dir / "model.cbm").exists():
+        from catboost import CatBoostRanker
+        dep_feats = json.loads((cat_dir / "features.json").read_text())
+        dep = CatBoostRanker().load_model(str(cat_dir / "model.cbm"))
+        dep_raw = dep.predict(
+            derive_frame(df)[dep_feats].to_numpy(dtype=np.float32))
+        dep_cal = pkl.loads(
+            (cat_dir / "calib.pkl").read_bytes()).predict(dep_raw)
+        report["primary_deployed"] = (
+            "ml_catboost (21 features: no pheno_excluded_overlap, no clinvar_score)")
+        report["ml_catboost"] = eval_system(df, dep_raw, dep_cal)
+        report["stratified_ml_catboost"] = stratify_by_known(df, dep_raw)
+    elif (deployed_dir / "ranker.txt").exists():
+        dep_feats = json.loads((deployed_dir / "features.json").read_text())
+        dep = lgb.Booster(model_file=str(deployed_dir / "ranker.txt"))
+        dep_raw = dep.predict(
+            derive_frame(df)[dep_feats].to_numpy(dtype=np.float32))
+        dep_cal = pkl.loads(
+            (deployed_dir / "calib.pkl").read_bytes()).predict(dep_raw)
+        report["primary_deployed"] = (
+            "ml_no_excluded (21 features: no pheno_excluded_overlap, "
+            "no clinvar_score)")
+        report["ml_no_excluded"] = eval_system(df, dep_raw, dep_cal)
+        report["stratified_ml_no_excluded"] = stratify_by_known(df, dep_raw)
+
     report["ml_full"] = eval_system(df, raw, cal)
     report["stratified_ml_full"] = stratify_by_known(df, raw)
     report["heuristic_ann"] = eval_system(df, heuristic_ann_score(df), None)
@@ -142,11 +170,15 @@ def main() -> None:
                f"R@1={r.get('recall@1', float('nan')):.3f} " \
                f"R@10={r.get('recall@10', float('nan')):.3f} " \
                f"RP={r.get('rank_points', float('nan')):.1f}"
-    for name in ("ml_full", "heuristic_ann", "clinvar_only", "resnik_only",
-                 "ml_no_clinvar", "ml_no_pheno"):
+    for name in ("ml_catboost", "ml_no_excluded", "ml_full", "heuristic_ann",
+                 "clinvar_only", "resnik_only", "ml_no_clinvar", "ml_no_pheno"):
         if name in report:
             print(nd(name))
-    print("[eval] stratified:", json.dumps(report["stratified_ml_full"]))
+    print("[eval] stratified ml_catboost:",
+          json.dumps(report.get("stratified_ml_catboost")))
+    print("[eval] stratified ml_no_excluded:",
+          json.dumps(report.get("stratified_ml_no_excluded")))
+    print("[eval] stratified ml_full:", json.dumps(report["stratified_ml_full"]))
     print(f"[eval] wrote {a.out}")
 
 

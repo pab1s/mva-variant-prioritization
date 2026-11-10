@@ -1,0 +1,219 @@
+{
+  "model": "catboost_yetirank",
+  "n_rows": 86412,
+  "n_features": 21,
+  "expected_value_bias": -6.451434987476288e-17,
+  "sum_check_max_abs_error": 1.4210854715202004e-14,
+  "features": [
+    {
+      "feature": "pheno_bma",
+      "mean_abs_shap": 0.733038964315497,
+      "mean_shap": -0.22399865370518096,
+      "mean_abs_causal": 2.255966582924841,
+      "mean_abs_benign": 0.699592372301334,
+      "mean_abs_causal_known": 2.176608508457821,
+      "mean_abs_causal_novel": 2.5033666997776813,
+      "rank": 1
+    },
+    {
+      "feature": "pheno_jaccard",
+      "mean_abs_shap": 0.7212181791392623,
+      "mean_shap": -0.5721880188581218,
+      "mean_abs_causal": 1.1737005051106446,
+      "mean_abs_benign": 0.7112807457606466,
+      "mean_abs_causal_known": 1.2113121925894201,
+      "mean_abs_causal_novel": 1.0564454439240414,
+      "rank": 2
+    },
+    {
+      "feature": "cadd_norm",
+      "mean_abs_shap": 0.636932341251565,
+      "mean_shap": -0.16011417138847386,
+      "mean_abs_causal": 0.6209352186965593,
+      "mean_abs_benign": 0.637283670641721,
+      "mean_abs_causal_known": 0.6286311663568633,
+      "mean_abs_causal_novel": 0.5969429738841703,
+      "rank": 3
+    },
+    {
+      "feature": "pheno_resnik",
+      "mean_abs_shap": 0.26359454524341885,
+      "mean_shap": -0.1448052450889979,
+      "mean_abs_causal": 1.106502287836551,
+      "mean_abs_benign": 0.24508257459714786,
+      "mean_abs_causal_known": 1.0822861219348021,
+      "mean_abs_causal_novel": 1.1819965877431111,
+      "rank": 4
+    },
+    {
+      "feature": "pheno_terms_matched",
+      "mean_abs_shap": 0.22747457496652745,
+      "mean_shap": 0.10814464929799161,
+      "mean_abs_causal": 0.17994027806380083,
+      "mean_abs_benign": 0.2285185249322109,
+      "mean_abs_causal_known": 0.17794759891958664,
+      "mean_abs_causal_novel": 0.18615248843356835,
+      "rank": 5
+    },
+    {
+      "feature": "consequence_weight",
+      "mean_abs_shap": 0.1995997538566797,
+      "mean_shap": -0.04425993760021888,
+      "mean_abs_causal": 0.08071610948671856,
+      "mean_abs_benign": 0.20221068079884774,
+      "mean_abs_causal_known": 0.09818906365338562,
+      "mean_abs_causal_novel": 0.02624388430194273,
+      "rank": 6
+    },
+    {
+      "feature": "am_norm",
+      "mean_abs_shap": 0.16964069201541807,
+      "mean_shap": -0.03143174157138447,
+      "mean_abs_causal": 0.179191180296418,
+      "mean_abs_benign": 0.16943094384277518,
+      "mean_abs_causal_known": 0.16362744779352906,
+      "mean_abs_causal_novel": 0.22771137519455964,
+      "rank": 7
+    },
+    {
+      "feature": "gene_path_count",
+      "mean_abs_shap": 0.15639380053400934,
+      "mean_shap": -0.028051644983227774,
+      "mean_abs_causal": 0.24074343694214165,
+      "mean_abs_benign": 0.1545413107367188,
+      "mean_abs_causal_known": 0.21939457789558522,
+      "mean_abs_causal_novel": 0.30729886004515344,
+      "rank": 8
+    },
+    {
+      "feature": "gene_hpo_count",
+      "mean_abs_shap": 0.09252282045925901,
+      "mean_shap": 0.02302627251443133,
+      "mean_abs_causal": 0.1742781934570469,
+      "mean_abs_benign": 0.09072730596979188,
+      "mean_abs_causal_known": 0.1792484349096616,
+      "mean_abs_causal_novel": 0.15878338307483789,
+      "rank": 9
+    },
+    {
+      "feature": "cadd_missing",
+      "mean_abs_shap": 0.09041464155398485,
+      "mean_shap": -0.003051970239545812,
+      "mean_abs_causal": 0.0707975841372472,
+      "mean_abs_benign": 0.0908454720858621,
+      "mean_abs_causal_known": 0.07089028629728303,
+      "mean_abs_causal_novel": 0.07050858361172535,
+      "rank": 10
+    },
+    {
+      "feature": "gene_disease_count",
+      "mean_abs_shap": 0.08634958823546808,
+      "mean_shap": 0.027224656766368236,
+      "mean_abs_causal": 0.10222258448338362,
+      "mean_abs_benign": 0.08600098491180444,
+      "mean_abs_causal_known": 0.105564557568469,
+      "mean_abs_causal_novel": 0.0918039278145808,
+      "rank": 11
+    },
+    {
+      "feature": "is_splice",
+      "mean_abs_shap": 0.05823273635934932,
+      "mean_shap": -0.002273543808914672,
+      "mean_abs_causal": 0.03927963776033826,
+      "mean_abs_benign": 0.0586489850034078,
+      "mean_abs_causal_known": 0.04042614597281817,
+      "mean_abs_causal_novel": 0.03570537934183102,
+      "rank": 12
+    },
+    {
+      "feature": "loeuf_norm",
+      "mean_abs_shap": 0.05500925948194944,
+      "mean_shap": -0.005338125947216953,
+      "mean_abs_causal": 0.04808515969155148,
+      "mean_abs_benign": 0.05516132681458227,
+      "mean_abs_causal_known": 0.05107201282583079,
+      "mean_abs_causal_novel": 0.03877359537492906,
+      "rank": 13
+    },
+    {
+      "feature": "pli_norm",
+      "mean_abs_shap": 0.04960986147604323,
+      "mean_shap": 0.0013911452815866805,
+      "mean_abs_causal": 0.06853132284502846,
+      "mean_abs_benign": 0.049194307649986745,
+      "mean_abs_causal_known": 0.06331883384599049,
+      "mean_abs_causal_novel": 0.08478134398171881,
+      "rank": 14
+    },
+    {
+      "feature": "exon_frac",
+      "mean_abs_shap": 0.04370362873123067,
+      "mean_shap": -0.0033093979523095697,
+      "mean_abs_causal": 0.016341439677994448,
+      "mean_abs_benign": 0.04430455812714882,
+      "mean_abs_causal_known": 0.0180773713457688,
+      "mean_abs_causal_novel": 0.010929643835664658,
+      "rank": 15
+    },
+    {
+      "feature": "impact_ord",
+      "mean_abs_shap": 0.025291649015978017,
+      "mean_shap": -0.004603667492707037,
+      "mean_abs_causal": 0.018086682556803374,
+      "mean_abs_benign": 0.025449884752654583,
+      "mean_abs_causal_known": 0.0185810152184495,
+      "mean_abs_causal_novel": 0.0165455922635119,
+      "rank": 16
+    },
+    {
+      "feature": "is_missense",
+      "mean_abs_shap": 0.009256927712392778,
+      "mean_shap": -0.0007311665421402452,
+      "mean_abs_causal": 0.006441957259173881,
+      "mean_abs_benign": 0.009318750196357386,
+      "mean_abs_causal_known": 0.006370303919033425,
+      "mean_abs_causal_novel": 0.006665337738636147,
+      "rank": 17
+    },
+    {
+      "feature": "is_lof",
+      "mean_abs_shap": 0.008881913248470905,
+      "mean_shap": -0.0070596733009372315,
+      "mean_abs_causal": 0.006154324697379957,
+      "mean_abs_benign": 0.008941816647907675,
+      "mean_abs_causal_known": 0.006068386269812382,
+      "mean_abs_causal_novel": 0.00642223917445315,
+      "rank": 18
+    },
+    {
+      "feature": "rare_score",
+      "mean_abs_shap": 0.0,
+      "mean_shap": 0.0,
+      "mean_abs_causal": 0.0,
+      "mean_abs_benign": 0.0,
+      "mean_abs_causal_known": 0.0,
+      "mean_abs_causal_novel": 0.0,
+      "rank": 19
+    },
+    {
+      "feature": "mane",
+      "mean_abs_shap": 0.0,
+      "mean_shap": 0.0,
+      "mean_abs_causal": 0.0,
+      "mean_abs_benign": 0.0,
+      "mean_abs_causal_known": 0.0,
+      "mean_abs_causal_novel": 0.0,
+      "rank": 20
+    },
+    {
+      "feature": "canonical",
+      "mean_abs_shap": 0.0,
+      "mean_shap": 0.0,
+      "mean_abs_causal": 0.0,
+      "mean_abs_benign": 0.0,
+      "mean_abs_causal_known": 0.0,
+      "mean_abs_causal_novel": 0.0,
+      "rank": 21
+    }
+  ]
+}

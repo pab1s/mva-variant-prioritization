@@ -1,0 +1,53 @@
+{
+  "old_primary_22feat_with_excluded": {
+    "features": 22,
+    "includes_pheno_excluded_overlap": true,
+    "includes_clinvar_score": false,
+    "recall@1": 0.871388,
+    "ndcg@10": 0.938081,
+    "recall@10": 0.997167,
+    "rank_points": 97.09915,
+    "n_queries": 1765.0,
+    "brier": 0.007538,
+    "fmax": 0.781209
+  },
+  "old_primary_feature_zeroed": {
+    "features": 22,
+    "includes_pheno_excluded_overlap": false,
+    "includes_clinvar_score": false,
+    "note": "same booster, pheno_excluded_overlap set to 0 at test (lower bound; no retraining)",
+    "recall@1": 0.823796,
+    "ndcg@10": 0.916274,
+    "recall@10": 0.996034,
+    "rank_points": 96.113314,
+    "n_queries": 1765.0,
+    "brier": 0.010483,
+    "fmax": 0.708447
+  },
+  "deployed_21feat_no_excluded_no_clinvar": {
+    "features": 21,
+    "includes_pheno_excluded_overlap": false,
+    "includes_clinvar_score": false,
+    "note": "drop pheno_excluded_overlap and clinvar_score; deployed as models/ml_no_excluded",
+    "recall@1": 0.866856,
+    "ndcg@10": 0.935715,
+    "recall@10": 0.996034,
+    "rank_points": 96.968839,
+    "n_queries": 1765.0,
+    "brier": 0.008196,
+    "fmax": 0.754940
+  },
+  "alternative_22feat_no_excluded_with_clinvar": {
+    "features": 22,
+    "includes_pheno_excluded_overlap": false,
+    "includes_clinvar_score": true,
+    "note": "drop only pheno_excluded_overlap; kept at models/ml_no_excluded_clinvar (not deployed)",
+    "recall@1": 0.860057,
+    "ndcg@10": 0.933182,
+    "recall@10": 0.996034,
+    "rank_points": 96.883853,
+    "n_queries": 1765.0,
+    "brier": 0.007938,
+    "fmax": 0.760209
+  }
+}

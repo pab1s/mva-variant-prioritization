@@ -29,16 +29,19 @@ import pandas as pd
 from sklearn.isotonic import IsotonicRegression
 
 from src.ml.eval_metrics import calibration_report, summarize
-from src.ml.rank_features import FEATURES, derive_frame
+from src.ml.rank_features import (FEATURES, GENE_INTRINSIC_FEATURES,
+                                  derive_frame)
 
 # graded-label gains: benign 0 < P/LP 1* (0.25) < P/LP 2* (1.0) < causal (3.0)
 LABEL_GAIN = [0.0, 0.25, 1.0, 3.0]
 
 
-def load_xy(path: str) -> tuple[np.ndarray, np.ndarray, np.ndarray, pd.DataFrame]:
+def load_xy(path: str, include_gene_features: bool = False
+            ) -> tuple[np.ndarray, np.ndarray, np.ndarray, pd.DataFrame]:
     """CSV.gz -> X (features), y (graded int), query_id array, raw frame."""
     df = pd.read_csv(path)
-    X = derive_frame(df).to_numpy(dtype=np.float32)
+    X = derive_frame(df, include_gene_features=include_gene_features).to_numpy(
+        dtype=np.float32)
     y = df["label"].to_numpy(dtype=int)
     qid = df["query_id"].astype(str).to_numpy()
     return X, y, qid, df
@@ -77,12 +80,17 @@ def main() -> None:
     p.add_argument("--seed", type=int, default=7)
     p.add_argument("--drop-features", default="",
                    help="comma-separated FEATURES to drop (ablations)")
+    p.add_argument("--include-gene-features", action="store_true",
+                   help="append the experimental GENE_INTRINSIC_FEATURES block "
+                        "(not deployed; see reports/gene_feature_ablation.md)")
     a = p.parse_args()
 
-    Xtr, ytr, qtr, _ = load_xy(a.train)
-    Xva, yva, qva, dva = load_xy(a.val)
-    keep = [f for f in FEATURES if f not in set(a.drop_features.split(","))]
-    idx = [FEATURES.index(f) for f in keep]
+    all_features = FEATURES + (
+        GENE_INTRINSIC_FEATURES if a.include_gene_features else [])
+    Xtr, ytr, qtr, _ = load_xy(a.train, a.include_gene_features)
+    Xva, yva, qva, dva = load_xy(a.val, a.include_gene_features)
+    keep = [f for f in all_features if f not in set(a.drop_features.split(","))]
+    idx = [all_features.index(f) for f in keep]
     Xtr, Xva = Xtr[:, idx], Xva[:, idx]
     print(f"[train] {len(ytr)} train rows ({len(np.unique(qtr))} queries, "
           f"{int((ytr > 0).sum())} pos), {len(yva)} val rows "

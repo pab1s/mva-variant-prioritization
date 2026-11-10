@@ -1,0 +1,157 @@
+{
+  "background": "single all-NaN row (TabICL native masking)",
+  "base_value": 0.019593672826886177,
+  "n_explained": 120,
+  "n_causal": 60,
+  "max_evals": 43,
+  "seconds": 85.0,
+  "features": [
+    {
+      "feature": "pheno_bma",
+      "mean_abs_shap": 0.06608552846339122,
+      "causal_mean_abs": 0.12286170083393562,
+      "benign_mean_abs": 0.009309356092846815,
+      "mean_shap": 0.060347352541429464
+    },
+    {
+      "feature": "pheno_resnik",
+      "mean_abs_shap": 0.04074338751147825,
+      "causal_mean_abs": 0.07725257165258166,
+      "benign_mean_abs": 0.00423420337037483,
+      "mean_shap": 0.04037019063549438
+    },
+    {
+      "feature": "pheno_jaccard",
+      "mean_abs_shap": 0.03948503912202488,
+      "causal_mean_abs": 0.07028383792280554,
+      "benign_mean_abs": 0.008686240321244234,
+      "mean_shap": -0.009005229294983378
+    },
+    {
+      "feature": "gene_hpo_count",
+      "mean_abs_shap": 0.03730482728386959,
+      "causal_mean_abs": 0.0719863208627265,
+      "benign_mean_abs": 0.0026233337050126523,
+      "mean_shap": 0.03453494915989626
+    },
+    {
+      "feature": "gene_path_count",
+      "mean_abs_shap": 0.01817819709204436,
+      "causal_mean_abs": 0.03472376519048616,
+      "benign_mean_abs": 0.0016326289936025454,
+      "mean_shap": 0.0006016601951171885
+    },
+    {
+      "feature": "gene_disease_count",
+      "mean_abs_shap": 0.01767206383316634,
+      "causal_mean_abs": 0.030893963496915106,
+      "benign_mean_abs": 0.00445016416941757,
+      "mean_shap": -0.00405624003349358
+    },
+    {
+      "feature": "pheno_terms_matched",
+      "mean_abs_shap": 0.013125833793045353,
+      "causal_mean_abs": 0.02360637474889149,
+      "benign_mean_abs": 0.002645292837199218,
+      "mean_shap": 0.00090070818240778
+    },
+    {
+      "feature": "impact_ord",
+      "mean_abs_shap": 0.01306089732529919,
+      "causal_mean_abs": 0.021405944975369053,
+      "benign_mean_abs": 0.00471584967522934,
+      "mean_shap": 0.005563550360478306
+    },
+    {
+      "feature": "cadd_missing",
+      "mean_abs_shap": 0.0112639519166676,
+      "causal_mean_abs": 0.019016960027378935,
+      "benign_mean_abs": 0.0035109438059562725,
+      "mean_shap": 0.006046491038911268
+    },
+    {
+      "feature": "am_norm",
+      "mean_abs_shap": 0.010647203099822696,
+      "causal_mean_abs": 0.01978298267986798,
+      "benign_mean_abs": 0.0015114235197774123,
+      "mean_shap": 0.003432824930247547
+    },
+    {
+      "feature": "cadd_norm",
+      "mean_abs_shap": 0.010442102573712605,
+      "causal_mean_abs": 0.017873651161106396,
+      "benign_mean_abs": 0.0030105539863188127,
+      "mean_shap": 0.0082234588510296
+    },
+    {
+      "feature": "is_splice",
+      "mean_abs_shap": 0.010004975599950897,
+      "causal_mean_abs": 0.016356271357301118,
+      "benign_mean_abs": 0.0036536798426006754,
+      "mean_shap": 0.00410193321246249
+    },
+    {
+      "feature": "loeuf_norm",
+      "mean_abs_shap": 0.008435504725708377,
+      "causal_mean_abs": 0.015408007457032606,
+      "benign_mean_abs": 0.0014630019943841473,
+      "mean_shap": -0.004128482632232229
+    },
+    {
+      "feature": "is_lof",
+      "mean_abs_shap": 0.008137578807851882,
+      "causal_mean_abs": 0.014396086004104072,
+      "benign_mean_abs": 0.0018790716115996955,
+      "mean_shap": 0.00445704750872482
+    },
+    {
+      "feature": "pli_norm",
+      "mean_abs_shap": 0.0077016837220569255,
+      "causal_mean_abs": 0.014493698298610977,
+      "benign_mean_abs": 0.0009096691455028753,
+      "mean_shap": -0.0015059283550587295
+    },
+    {
+      "feature": "is_missense",
+      "mean_abs_shap": 0.0072003023152877755,
+      "causal_mean_abs": 0.013560019946016562,
+      "benign_mean_abs": 0.0008405846845589895,
+      "mean_shap": 0.005516373157757065
+    },
+    {
+      "feature": "consequence_weight",
+      "mean_abs_shap": 0.0070470741432006176,
+      "causal_mean_abs": 0.012172511964286748,
+      "benign_mean_abs": 0.001921636322114492,
+      "mean_shap": 0.0009723534397819968
+    },
+    {
+      "feature": "exon_frac",
+      "mean_abs_shap": 0.003406881016033911,
+      "causal_mean_abs": 0.005896135932010964,
+      "benign_mean_abs": 0.0009176261000568568,
+      "mean_shap": -0.002357803311290043
+    },
+    {
+      "feature": "rare_score",
+      "mean_abs_shap": 0.0,
+      "causal_mean_abs": 0.0,
+      "benign_mean_abs": 0.0,
+      "mean_shap": 0.0
+    },
+    {
+      "feature": "mane",
+      "mean_abs_shap": 0.0,
+      "causal_mean_abs": 0.0,
+      "benign_mean_abs": 0.0,
+      "mean_shap": 0.0
+    },
+    {
+      "feature": "canonical",
+      "mean_abs_shap": 0.0,
+      "causal_mean_abs": 0.0,
+      "benign_mean_abs": 0.0,
+      "mean_shap": 0.0
+    }
+  ]
+}

@@ -386,11 +386,11 @@ def stage_build(args) -> None:
     header = _parse_vcf_header(str(args.vep_vcf))
     csq_fields = header["csq_fields"]
 
-    # LOEUF gene -> (loeuf, pli) from MANE/canonical rows (shared with inference)
-    from src.ml.lookup import load_loeuf
-    print("[build] loading LOEUF ...")
-    loeuf = load_loeuf()
-    print(f"[build] LOEUF: {len(loeuf)} genes")
+    # Gene-level constraint/structure from gnomAD (shared with inference)
+    from src.ml.lookup import load_gene_constraint
+    print("[build] loading gene constraint ...")
+    gene_constraint = load_gene_constraint()
+    print(f"[build] gene constraint: {len(gene_constraint)} genes")
 
     gene_counts = pd.read_csv(ML_DIR / "gene_counts.csv.gz")
     path_count = dict(zip(gene_counts["gene"], gene_counts["n_path"]))
@@ -398,7 +398,9 @@ def stage_build(args) -> None:
     # gnomAD AF comes from the AF side-file (the fast structural pass omits the
     # --af_* flags: they cost ~7.6x more and are only run over candidates).
     from src.ml.lookup import load_af, cadd_lookup, am_lookup, vkey as _vk
-    af_path = Path(args.af_vcf) if args.af_vcf else ML_DIR / "train.af.vcf.gz"
+    af_path = Path(args.af_vcf) if args.af_vcf else Path("data/interim/af.tsv.gz")
+    if not af_path.exists():
+        af_path = Path("data/interim/af.vep.vcf.gz")
     af_map = load_af(af_path)
     print(f"[build] gnomAD AF loaded: {len(af_map)} variants from {af_path}")
 
@@ -416,7 +418,7 @@ def stage_build(args) -> None:
                 gene = ""
             af_f = af_map.get(_vk(chrom, pos, ref, alt))
             clin = info.get("CLIN_SIG", "")
-            lo, pli = loeuf.get(gene, (None, None))
+            gc = gene_constraint.get(gene, {})
             rows.append((
                 chrom, pos, ref, alt,
                 gene,
@@ -428,13 +430,19 @@ def stage_build(args) -> None:
                 info.get("EXON", ""),
                 1 if info.get("CANONICAL") == "YES" else 0,
                 1 if info.get("MANE_SELECT") not in ("", None) else 0,
-                lo, pli,
+                gc.get("loeuf"), gc.get("pli"),
                 path_count.get(gene, 0),
+                gc.get("oe_mis"), gc.get("mis_z"), gc.get("syn_z"),
+                gc.get("oe_lof"), gc.get("cds_length"), gc.get("num_exons"),
+                gc.get("segdup_prop"), gc.get("lcr_prop"),
             ))
     df = pd.DataFrame(rows, columns=[
         "CHROM", "POS", "REF", "ALT", "SYMBOL", "Consequence", "IMPACT",
         "gnomad_af", "CADD_PHRED", "CLIN_SIG", "EXON", "canonical", "mane",
-        "gene_loeuf", "gene_pli", "gene_clinvar_path_count"])
+        "gene_loeuf", "gene_pli", "gene_clinvar_path_count",
+        "gene_oe_mis", "gene_mis_z", "gene_syn_z", "gene_oe_lof",
+        "gene_cds_length", "gene_num_exons", "gene_segdup_prop",
+        "gene_lcr_prop"])
     print(f"[build] CSQ parsed: {len(df)} variants "
           f"({(df.SYMBOL != '').sum()} with gene, "
           f"{df.gnomad_af.notna().sum()} with gnomAD AF)")
@@ -467,7 +475,7 @@ def stage_queries(args) -> None:
     ont = HPOOntology(str(OBO))
     gh = GeneHPO(str(G2P), ont)
 
-    static = pd.read_csv(ML_DIR / "static_features.csv.gz")
+    static = pd.read_csv(Path(getattr(args, "static", ML_DIR / "static_features.csv.gz")))
     static["vkey"] = (static.CHROM.astype(str) + ":" + static.POS.astype(str)
                       + ":" + static.REF + ":" + static.ALT)
     static = static.set_index("vkey", drop=False)
@@ -492,6 +500,16 @@ def stage_queries(args) -> None:
     path_dis0 = list(path_df["dis0"])
 
     panel = set(args.panel.split(",")) if args.panel else set()
+
+    # AF availability is a global property of the run; loading the side-file
+    # inside the per-query loop is O(queries x variants) and can take hours.
+    from src.ml.lookup import load_af
+    from src.ml.candidates import retrieval_components
+    af_path = Path("data/interim/af.tsv.gz")
+    if not af_path.exists():
+        af_path = Path("data/interim/af.vep.vcf.gz")
+    af_available = bool(load_af(af_path))
+    print(f"[queries] AF available: {af_available} ({af_path})", flush=True)
 
     rows_out: list[pd.DataFrame] = []
     retrieval_pos_total = retrieval_pos_kept = 0
@@ -562,13 +580,13 @@ def stage_queries(args) -> None:
         gene_set = set(pool["SYMBOL"].dropna()) - {""}
         pheno = {g: gh.gene_similarity(qterms, g, norm, weights, excluded)
                  for g in gene_set}
+        intrinsic = {g: gh.gene_intrinsic(g) for g in gene_set}
         from src.ml.candidates import PHENO_GATE_MIN_NORM
         pheno_gate = {g for g, s in pheno.items()
                       if s["pheno_resnik"] > PHENO_GATE_MIN_NORM}
 
         # ---- retrieval filter (parity with inference) + failure accounting
-        from src.ml.candidates import retrieval_components
-        comp = retrieval_components(pool, pheno_gate, panel, args.af_thresh)
+        comp = retrieval_components(pool, pheno_gate, panel, args.af_thresh, af_available)
         keep = (comp["rare"] & (comp["cw_ok"] | comp["gate_ok"])) | comp["clin_path"]
         for i in pool.index[pool["label"] > 0]:
             g = int(pool.at[i, "label"])
@@ -604,9 +622,18 @@ def stage_queries(args) -> None:
                 continue
             for k, v in s.items():
                 pool.loc[m, k] = v
+        for g, s in intrinsic.items():
+            m = pool["SYMBOL"] == g
+            if not m.any():
+                continue
+            for k, v in s.items():
+                pool.loc[m, k] = v
         for col in ("pheno_resnik", "pheno_bma", "pheno_jaccard",
                     "pheno_terms_matched", "pheno_excluded_overlap",
-                    "gene_hpo_count", "gene_disease_count"):
+                    "gene_hpo_count", "gene_disease_count",
+                    "gene_inheritance_ar", "gene_inheritance_ad",
+                    "gene_inheritance_xl", "gene_hpo_ic_mean",
+                    "gene_hpo_ic_max"):
             if col in pool.columns:
                 pool[col] = pool[col].fillna(0.0)
             else:
@@ -664,6 +691,8 @@ def main() -> None:
     s3 = sub.add_parser("queries")
     s3.add_argument("--panel", default="", help="comma-separated gene panel (optional)")
     s3.add_argument("--af-thresh", type=float, default=0.01)
+    s3.add_argument("--static", default=str(ML_DIR / "static_features.csv.gz"),
+                    help="static features CSV (default: data/ml/static_features.csv.gz)")
     s3.set_defaults(func=stage_queries)
     a = p.parse_args()
     a.func(a)

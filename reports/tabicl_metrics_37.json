@@ -1,0 +1,255 @@
+{
+  "model": "tabicl",
+  "version": "tabicl-v2",
+  "target": "grade3",
+  "features": [
+    "rare_score",
+    "consequence_weight",
+    "is_lof",
+    "is_missense",
+    "is_splice",
+    "impact_ord",
+    "cadd_norm",
+    "cadd_missing",
+    "canonical",
+    "mane",
+    "am_norm",
+    "loeuf_norm",
+    "pli_norm",
+    "gene_path_count",
+    "exon_frac",
+    "pheno_resnik",
+    "pheno_bma",
+    "pheno_jaccard",
+    "pheno_terms_matched",
+    "gene_hpo_count",
+    "gene_disease_count",
+    "gene_oe_mis",
+    "gene_mis_z",
+    "gene_syn_z",
+    "gene_oe_lof",
+    "gene_cds_length_log",
+    "gene_num_exons_log",
+    "gene_segdup_prop",
+    "gene_lcr_prop",
+    "gene_inheritance_ar",
+    "gene_inheritance_ad",
+    "gene_inheritance_xl",
+    "gene_hpo_ic_mean",
+    "gene_hpo_ic_max",
+    "is_lof_x_loeuf",
+    "is_missense_x_mis_z",
+    "cadd_x_loeuf"
+  ],
+  "n_train_rows": 39974,
+  "n_train_queries": 565,
+  "n_test_rows": 86412,
+  "n_test_queries": 1765,
+  "n_estimators": "2",
+  "fit_mode": "kv_cache=True",
+  "fit_seconds": 15.9,
+  "predict_seconds": 34.4,
+  "metrics": {
+    "ndcg@1": 0.616406,
+    "recall@1": 0.635694,
+    "ndcg@3": 0.757742,
+    "recall@3": 0.848725,
+    "ndcg@10": 0.809252,
+    "recall@10": 0.980737,
+    "mrr": 0.75583,
+    "rank_points": 89.320113,
+    "n_queries": 1765.0,
+    "calib_brier": 0.013126,
+    "calib_ece": 0.01171,
+    "calib_fmax": 0.620996,
+    "calib_fmax_threshold": 0.118657
+  },
+  "reference": {
+    "lightgbm_deployed_no_excluded_no_clinvar": {
+      "ndcg@10": 0.935715,
+      "recall@1": 0.866856,
+      "recall@10": 0.996034,
+      "rank_points": 96.968839
+    },
+    "lightgbm_prev_primary_with_excluded": {
+      "ndcg@10": 0.938081,
+      "recall@1": 0.871388,
+      "recall@10": 0.997167,
+      "rank_points": 97.09915
+    },
+    "lightgbm_no_excluded_with_clinvar": {
+      "ndcg@10": 0.933182,
+      "recall@1": 0.860057,
+      "recall@10": 0.996034,
+      "rank_points": 96.883853
+    }
+  },
+  "gpu": "NVIDIA GeForce RTX 2050",
+  "peak_vram_mb": 3121.7,
+  "candidate_ranking": {
+    "path": "/tmp/opencode/tabicl_v2_37feat_40k_2est_full/ranked_candidates.csv",
+    "n_candidates": 79797,
+    "mva": [
+      {
+        "RANK": 2,
+        "SYMBOL": "ANXA5",
+        "CHROM": "4",
+        "POS": 121669728,
+        "REF": "T",
+        "ALT": "TA",
+        "score": 0.18476751446723938
+      },
+      {
+        "RANK": 81,
+        "SYMBOL": "BUB1B",
+        "CHROM": "15",
+        "POS": 40220612,
+        "REF": "T",
+        "ALT": "G",
+        "score": 0.01549723744392395
+      },
+      {
+        "RANK": 195,
+        "SYMBOL": "BUB1B",
+        "CHROM": "15",
+        "POS": 40209701,
+        "REF": "T",
+        "ALT": "G",
+        "score": 0.011095941998064518
+      },
+      {
+        "RANK": 6080,
+        "SYMBOL": "MAP2K3",
+        "CHROM": "17",
+        "POS": 21300880,
+        "REF": "C",
+        "ALT": "T",
+        "score": 0.003501549828797579
+      }
+    ]
+  },
+  "shap": {
+    "global_top": [
+      {
+        "feature": "pheno_bma",
+        "mean_abs_shap": 0.04793142893149074,
+        "causal_mean_abs": 0.09204288205388972,
+        "benign_mean_abs": 0.003819975809091778,
+        "mean_shap": 0.04676359802473879
+      },
+      {
+        "feature": "pheno_resnik",
+        "mean_abs_shap": 0.03664342982232258,
+        "causal_mean_abs": 0.07079594461303913,
+        "benign_mean_abs": 0.0024909150316059624,
+        "mean_shap": 0.036306228637925445
+      },
+      {
+        "feature": "gene_hpo_count",
+        "mean_abs_shap": 0.025050853657727613,
+        "causal_mean_abs": 0.046859462400122245,
+        "benign_mean_abs": 0.003242244915333002,
+        "mean_shap": 0.021368589577629542
+      },
+      {
+        "feature": "pheno_jaccard",
+        "mean_abs_shap": 0.020573181097348785,
+        "causal_mean_abs": 0.0374676993123204,
+        "benign_mean_abs": 0.0036786628823771623,
+        "mean_shap": -0.0002964964141912987
+      },
+      {
+        "feature": "gene_disease_count",
+        "mean_abs_shap": 0.0145705047744741,
+        "causal_mean_abs": 0.026416116721844036,
+        "benign_mean_abs": 0.002724892827104163,
+        "mean_shap": -0.0030997716377795677
+      },
+      {
+        "feature": "gene_path_count",
+        "mean_abs_shap": 0.013472667803443672,
+        "causal_mean_abs": 0.025689062018096186,
+        "benign_mean_abs": 0.0012562735887911456,
+        "mean_shap": 0.0008613926764588268
+      },
+      {
+        "feature": "loeuf_norm",
+        "mean_abs_shap": 0.01054253490188128,
+        "causal_mean_abs": 0.01911369984550725,
+        "benign_mean_abs": 0.001971369958255309,
+        "mean_shap": 0.005363535157534393
+      },
+      {
+        "feature": "cadd_x_loeuf",
+        "mean_abs_shap": 0.008555644892294685,
+        "causal_mean_abs": 0.015868026857707367,
+        "benign_mean_abs": 0.0012432629268820015,
+        "mean_shap": 0.00661242088381155
+      },
+      {
+        "feature": "gene_segdup_prop",
+        "mean_abs_shap": 0.0072335631377809595,
+        "causal_mean_abs": 0.013977129598465076,
+        "benign_mean_abs": 0.0004899966770968453,
+        "mean_shap": 0.005744381392874392
+      },
+      {
+        "feature": "is_lof_x_loeuf",
+        "mean_abs_shap": 0.007138248377965005,
+        "causal_mean_abs": 0.0138240920646543,
+        "benign_mean_abs": 0.0004524046912757109,
+        "mean_shap": 0.0011474724233993233
+      },
+      {
+        "feature": "pli_norm",
+        "mean_abs_shap": 0.0069721649528613925,
+        "causal_mean_abs": 0.012795775498832688,
+        "benign_mean_abs": 0.0011485544068900963,
+        "mean_shap": -0.00445624251254628
+      },
+      {
+        "feature": "gene_oe_lof",
+        "mean_abs_shap": 0.006669543109418581,
+        "causal_mean_abs": 0.012098368724077265,
+        "benign_mean_abs": 0.0012407174947598935,
+        "mean_shap": 0.003062980318381077
+      }
+    ],
+    "base_value": 0.00335332122631371,
+    "shap_seconds": 56.6,
+    "local_top": {
+      "BUB1B 15:40209701": {
+        "pheno_bma": 0.01434968423563987,
+        "gene_hpo_count": 0.013089268068142701,
+        "is_missense": 0.01063139810382078,
+        "pheno_resnik": 0.010596354220372936,
+        "pheno_jaccard": 0.008927931019570678,
+        "cadd_x_loeuf": 0.006219303419735904
+      },
+      "BUB1B 15:40220612": {
+        "pheno_bma": 0.018179862042112898,
+        "is_lof": 0.011145064287120476,
+        "pheno_jaccard": 0.010855334131823232,
+        "gene_inheritance_ar": 0.010188607353484258,
+        "pheno_resnik": 0.009808425907976925,
+        "gene_hpo_count": 0.009692302885620544
+      },
+      "ANXA5 4:121669728": {
+        "pheno_bma": 0.12111981025858161,
+        "pheno_resnik": 0.06977955176262185,
+        "gene_hpo_count": 0.06445971895785381,
+        "gene_path_count": 0.055921454448252916,
+        "pheno_jaccard": 0.028760804561898112,
+        "gene_disease_count": 0.024116155478016783
+      },
+      "MAP2K3 17:21300880": {
+        "gene_disease_count": 0.004977778162962447,
+        "cadd_norm": 0.004862267155355464,
+        "pheno_jaccard": 0.00453511441204076,
+        "pheno_bma": 0.0035002572500767806,
+        "is_lof": 0.0018908990896306932,
+        "gene_hpo_count": 0.0016241745518830915
+      }
+    }
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "model": "catboost_yetirank",
+  "n_features": 21,
+  "best_iteration": 387,
+  "seconds": 381.4,
+  "params": {
+    "iterations": 400,
+    "learning_rate": 0.05,
+    "depth": 6,
+    "l2_leaf_reg": 3.0,
+    "loss_function": "YetiRank"
+  },
+  "val": {
+    "ndcg@1": 0.780994,
+    "recall@1": 0.835003,
+    "ndcg@3": 0.893715,
+    "recall@3": 0.937876,
+    "ndcg@10": 0.912873,
+    "recall@10": 0.985304,
+    "mrr": 0.891169,
+    "rank_points": 95.02338,
+    "n_queries": 1497.0,
+    "calib_brier": 0.009412,
+    "calib_ece": 0.0,
+    "calib_fmax": 0.72953,
+    "calib_fmax_threshold": 0.347713
+  },
+  "test": {
+    "ndcg@1": 0.86504,
+    "recall@1": 0.884986,
+    "ndcg@3": 0.935583,
+    "recall@3": 0.971671,
+    "ndcg@10": 0.946028,
+    "recall@10": 0.997734,
+    "mrr": 0.929533,
+    "rank_points": 97.546742,
+    "n_queries": 1765.0,
+    "calib_brier": 0.007797,
+    "calib_ece": 0.004173,
+    "calib_fmax": 0.767937,
+    "calib_fmax_threshold": 0.432432
+  }
+}
