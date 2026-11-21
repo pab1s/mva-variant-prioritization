@@ -2,6 +2,8 @@
 
 **Fecha:** 2026-11-04 · **Estado:** **promovido a primary** · **Features:** 21 (sin `pheno_excluded_overlap`, sin `clinvar_score`) · **Split:** el mismo test held-out (1.765 queries, 1.857 causales)
 
+> **Nota (2026-11-21):** `pheno_bma` se corrigió a normalización con cobertura (denominador = todos los términos de la query). Este informe describe el modelo **anterior**; el reentrenamiento y los ranks MVA actualizados están en `reports/bma_coverage_fix.md`.
+
 **Pregunta:** ¿mejora el ranking si sustituimos LightGBM por CatBoost con el mismo esquema de features y el mismo split?
 
 **Respuesta corta: sí.** CatBoost `YetiRank` sube NDCG@10 de **0,9357 a 0,9460** y R@1 de **0,8669 a 0,8850**, con mejor calibración. En el full-list, BUB1B pasa a **rank 2 (stop) / 3 (missense)**; con 7 HPO, **1 / 2**.

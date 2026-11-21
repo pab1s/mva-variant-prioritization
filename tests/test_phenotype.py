@@ -35,7 +35,7 @@ def test_ancestors_include_self_and_root(gh):
 
 
 def test_ic_monotone(gh):
-    gene_hpo, ont = gh
+    _, ont = gh
     # the root is annotated to every gene -> IC ~ 0
     assert ont.ic.get("HP:0000001", 0.0) == pytest.approx(0.0, abs=1e-6)
     # a specific term has higher IC than a generic one
@@ -57,6 +57,18 @@ def test_mva_genes_score_high(gh):
     rand = [gene_hpo.gene_similarity(terms, rng.choice(genes), norm)["pheno_resnik"]
             for _ in range(50)]
     assert max(causal) > max(rand) or max(causal) >= 0.85
+
+
+def test_bma_is_coverage_aware(gh):
+    """A single specific match must not beat broad phenotype coverage."""
+    gene_hpo, ont = gh
+    terms = {t for t in MVA_TERMS if ont.is_known(t)}
+    norm = ont.query_norm_factor(terms)
+    anxa5 = gene_hpo.gene_similarity(terms, "ANXA5", norm)["pheno_bma"]
+    bub1b = gene_hpo.gene_similarity(terms, "BUB1B", norm)["pheno_bma"]
+    # ANXA5 only matches the parental HP:0200067 -> 1/8, not 1.0
+    assert anxa5 <= 1.0 / len(terms) + 1e-6
+    assert bub1b > anxa5
 
 
 def test_gene_without_annotations_is_zero(gh):

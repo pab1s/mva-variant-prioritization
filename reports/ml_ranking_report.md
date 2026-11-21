@@ -2,6 +2,8 @@
 
 **Fecha:** 2026-10-31 (actualizado 2026-11-04) · Estado: F0→F6 completados · `pytest tests/` 16/16 · `swap.done` presente en `data/interim/.repair/`.
 
+> **Nota (2026-11-21):** `pheno_bma` se corrigió a normalización con cobertura. Las métricas y ranks MVA de este informe son del modelo anterior; ver `reports/bma_coverage_fix.md`.
+
 ---
 
 ## 1. Resultado corto

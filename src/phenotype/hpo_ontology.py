@@ -141,8 +141,7 @@ class HPOOntology:
         for anc in self.ancestors(q_term):
             if anc in target_closure:
                 v = self.ic.get(anc, 0.0)
-                if v > best:
-                    best = v
+                best = max(best, v)
         return best
 
     def similarity(
@@ -155,8 +154,9 @@ class HPOOntology:
 
         Returns:
             resnik_max: max-Resnik over all term pairs
-            resnik_bma: frequency-weighted best-match average over query terms
-                        (each query term matched to its best target term)
+            resnik_bma: coverage-aware frequency-weighted best-match average
+                        over ALL query terms (each matched to its best target
+                        term; unmatched terms contribute 0)
             terms_matched: #query terms with a non-zero best match
         """
         self._require_ic()
@@ -169,18 +169,21 @@ class HPOOntology:
 
         resnik_max = 0.0
         matched = 0
-        wsum = 0.0
+        # Coverage-aware BMA: the denominator is the weight of ALL query
+        # terms, not only the matched ones. Otherwise a gene matching a
+        # single highly specific term scores 1.0 and outranks a gene that
+        # matches most of the phenotype but with lower-IC terms.
+        weights = query_weights or {}
+        wsum = sum(weights.get(q, 0.5) for q in query_terms)
         wacc = 0.0
         for q in query_terms:
             best = self._best_ic(q, target_closure_f)
             if best <= 0.0:
                 continue
             matched += 1
-            if best > resnik_max:
-                resnik_max = best
-            w = (query_weights or {}).get(q, 0.5)
+            resnik_max = max(resnik_max, best)
+            w = weights.get(q, 0.5)
             wacc += w * best
-            wsum += w
         resnik_bma = (wacc / wsum) if wsum > 0 else 0.0
         return {
             "resnik_max": resnik_max,
@@ -200,6 +203,5 @@ class HPOOntology:
         for q in query_terms:
             for anc in self.ancestors(q):
                 v = self.ic.get(anc, 0.0)
-                if v > best:
-                    best = v
+                best = max(best, v)
         return best if best > 0 else 1.0

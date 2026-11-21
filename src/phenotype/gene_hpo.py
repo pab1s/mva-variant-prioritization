@@ -4,7 +4,8 @@ Loads, filters and indexes HPOA annotations so the ranker can compute
 *generic* (disease-agnostic) phenotype features:
 
     pheno_resnik            normalized max-Resnik(query HPO, gene HPO)
-    pheno_bma               frequency-weighted best-match average (normalized)
+    pheno_bma               coverage-aware frequency-weighted best-match average
+                            (normalized; unmatched query terms count as 0)
     pheno_jaccard           plain Jaccard on raw term sets
     pheno_terms_matched     #query terms with a non-zero match (clipped)
     pheno_excluded_overlap  fraction of gene terms present in query EXCLUDED set

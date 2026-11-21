@@ -69,6 +69,13 @@ python -m src.prioritization.prioritize --vcf data/interim/full.vep.vcf.gz \
   1 = ClinVar P/LP 1★, 0 = benign (ClinVar B/LB or VKGL LB). VUS excluded.
 - P1 (label leakage via `clinvar_score`) is settled empirically on the novel
   stratum: see `reports/ml_ranking_report.md`.
+- **Coverage-aware `pheno_bma`:** the BMA denominator now includes all query
+  terms (unmatched = 0), so a single specific match cannot score 1.0. The
+  retrained model (`models/ml_catboost_bmafix/`) is experimental: test NDCG is
+  unchanged within noise, but MVA with 8 HPO worsens because `pheno_jaccard`
+  still penalizes well-annotated genes. With 7 HPO (parental term excluded)
+  BUB1B is rank 1/2. See `reports/bma_coverage_fix.md`. Do not deploy the new
+  feature with the old primary model.
 - **Experimental ESM-2 embeddings:** variant-level ESM-2 35M delta embeddings
   and a masked-marginal score were tested on top of the 21-feature schema. They
   improve LightGBM (+0.0055 NDCG@10) but not CatBoost (+0.0009, CI includes 0);
